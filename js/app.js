@@ -41,17 +41,18 @@ function dash(){stopClock();const av={lab:['🧑‍🔬','🎧','🎹','🥁','�
  on('[data-del]',el=>{const p=S.profiles[+el.dataset.del];if(confirm('Remove '+p.name+' and all progress?')){S.profiles.splice(+el.dataset.del,1);save();dash();}});
  on('[data-rt]',el=>{const p=S.profiles[+el.dataset.rt];if(p.time)p.time[today()]=0;save();dash();});
  on('[data-av]',el=>{const p=S.profiles[+el.dataset.av],l=av[p.world];p.avatar=l[(l.indexOf(p.avatar)+1)%l.length];save();dash();});}
-function progressText(p){const pr=p.prog||{};const list=p.world==='dino'?TODDLER:G3_WINGS;return list.map(w=>{const r=pr[w.id];return `${w.icon} ${w.title}: ${r?(p.world==='dino'?r.plays+' plays':`best ${r.best}/${w.questions.length}, ${r.plays} tries`):'not started'}`}).join(' · ')+(p.badges&&p.badges.length?' · Badges: '+p.badges.join(', '):'');}
+function progressText(p){const pr=p.prog||{};const list=p.world==='dino'?TODDLER:G3_WINGS;return list.map(w=>{const r=pr[w.id];return `${w.icon} ${w.title}: ${r?(p.world==='dino'?(r.plays||0)+(r.plays===1?' round':' rounds')+' of 10'+(r.views?`, ${r.views} cards`:'')+(r.seen?`, letters heard ${r.seen.length}/26`:'')+(r.found?`, letters found ${r.found.length}/26 (${r.found.slice().sort().join(' ')})`:''):`last round ${r.rounds&&r.rounds.length?r.rounds[r.rounds.length-1].s+'/'+r.rounds[r.rounds.length-1].of:'-'}, best ${r.best}/10, ${r.plays} round${r.plays===1?'':'s'}`):'not started'}`}).join(' · ')+(p.badges&&p.badges.length?' · Badges: '+p.badges.join(', '):'');}
 // ---- Grade 3 lab ----
 function labHome(p){h(`<div class="screen lab"><header class="top"><button class="btn ghost" id="bk">🏠</button><h1>${p.avatar} ${esc(p.name)}'s Mad Scientist Music Lab</h1><span class="stars">⭐ ${p.stars||0}</span></header>
  <p class="lead">Pick a lab wing. Each one is a topic from class. Tap 🔊 to hear anything read aloud.</p>
- <div class="grid wings">${G3_WINGS.map((w,i)=>{const r=(p.prog||{})[w.id];return `<button class="card wing" data-i="${i}"><div class="big-emoji">${w.icon}</div><div class="pname">${w.title}</div><div class="small">${w.subject}: ${w.topic}</div><div class="small">${r?'Best '+r.best+'/'+w.questions.length+(r.best===w.questions.length?' 🏅':''):'New!'}</div></button>`}).join('')}</div>
+ <div class="grid wings">${G3_WINGS.map((w,i)=>{const r=(p.prog||{})[w.id];return `<button class="card wing" data-i="${i}"><div class="big-emoji">${w.icon}</div><div class="pname">${w.title}</div><div class="small">${w.subject}: ${w.topic}</div><div class="small">${r?'Best '+r.best+'/10'+(r.best>=8?' 🏅':''):'New!'}</div></button>`}).join('')}</div>
  ${p.badges&&p.badges.length?`<p class="badges">🏅 ${p.badges.join(' · ')}</p>`:''}</div>`);
  on('#bk',home);on('.wing',el=>quiz(p,G3_WINGS[+el.dataset.i]));}
 function shuffle(a){a=a.slice();for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a;}
-function quiz(p,w){let qs=shuffle(w.questions),i=0,score=0,firstTry=true;
+const ROUND=10;
+function quiz(p,w){let qs=shuffle(w.questions).slice(0,ROUND),i=0,score=0,firstTry=true;
  const show=()=>{const q=qs[i];const order=shuffle(q.c.map((c,k)=>k));
- h(`<div class="screen lab"><header class="top"><button class="btn ghost" id="bk">⬅</button><h1>${w.icon} ${w.title}</h1><span class="stars">${i+1}/${qs.length} · ⭐ ${score}</span></header>
+ h(`<div class="screen lab"><header class="top"><button class="btn ghost" id="bk">⬅</button><h1>${w.icon} ${w.title}</h1><span class="stars">Question ${i+1} of ${qs.length} · ⭐ ${score}</span></header>
  ${i===0?`<p class="intro">${w.intro} <button class="btn sm" id="si">🔊</button></p>`:''}
  ${w.map?mapSVG():''}${q.art?shapeSVG(q.art):''}
  <div class="qbox"><p class="q">${q.q}</p><button class="btn sm" id="sq">🔊 Read to me</button></div>
@@ -59,9 +60,9 @@ function quiz(p,w){let qs=shuffle(w.questions),i=0,score=0,firstTry=true;
  on('#bk',()=>labHome(p));on('#sq',()=>Say.speak(q.q+'. '+q.c.join(', or ')));if($('#si'))on('#si',()=>Say.speak(w.intro));
  on('.choice',el=>{const k=+el.dataset.k;if(k===q.a){el.classList.add('ok');if(firstTry)score++;Snd.good();$('#fb').innerHTML='✅ '+q.why;Say.speak('Great thinking! '+q.why);document.querySelectorAll('.choice').forEach(b=>b.disabled=true);setTimeout(()=>{i++;firstTry=true;i<qs.length?show():finish();},2600);}
   else{firstTry=false;el.disabled=true;el.classList.add('no');Snd.soft();$('#fb').textContent='Not quite. Look for the clue and try another one!';}});};
- const finish=()=>{p.prog=p.prog||{};const r=p.prog[w.id]||{best:0,plays:0};r.plays++;r.best=Math.max(r.best,score);p.prog[w.id]=r;p.stars=(p.stars||0)+score;p.badges=p.badges||[];let nb='';const bn=w.title.split(' ')[0]+' Master';if(score>=Math.ceil(qs.length*0.8)&&!p.badges.includes(bn)){p.badges.push(bn);nb=bn;}save();
-  h(`<div class="screen center lab"><div class="big-emoji">🧪✨🎶</div><h1>Experiment complete!</h1><p class="lead">You got ${score} of ${qs.length} on the first try and earned ${score} ⭐</p>${nb?`<p class="badge">🏅 New badge: ${nb}</p>`:''}<button class="btn" id="ag">Play again</button> <button class="btn ghost" id="lb">Back to the lab</button></div>`);
-  Snd.good();Say.speak(`Experiment complete! You earned ${score} stars.`+(nb?' New badge: '+nb:''));on('#ag',()=>quiz(p,w));on('#lb',()=>labHome(p));};
+ const finish=()=>{p.prog=p.prog||{};const r=p.prog[w.id]||{best:0,plays:0};r.plays++;r.best=Math.max(r.best,score);r.rounds=(r.rounds||[]).concat([{d:today(),s:score,of:qs.length}]).slice(-30);p.prog[w.id]=r;p.stars=(p.stars||0)+score;p.badges=p.badges||[];let nb='';const bn=w.title.split(' ')[0]+' Master';if(score>=Math.ceil(qs.length*0.8)&&!p.badges.includes(bn)){p.badges.push(bn);nb=bn;}save();
+  h(`<div class="screen center lab"><div class="big-emoji">🧪✨🎶</div><h1>Round complete!</h1><p class="score">${score} / ${qs.length}</p><p class="lead">${'⭐'.repeat(score)}${'☆'.repeat(qs.length-score)}</p><p class="lead">${score>=8?'Brilliant experimenting!':score>=5?'Great work, scientist!':'Good effort! Every round makes your brain stronger.'}</p>${nb?`<p class="badge">🏅 New badge: ${nb}</p>`:''}<button class="btn" id="ag">Play again</button> <button class="btn ghost" id="lb">Back to the lab</button></div>`);
+  Snd.good();Say.speak(`Round complete! You got ${score} out of ${qs.length} and earned ${score} stars.`+(nb?' New badge: '+nb:''));on('#ag',()=>quiz(p,w));on('#lb',()=>labHome(p));};
  show();}
 function mapSVG(){return `<svg class="art map" viewBox="0 0 400 160" role="img" aria-label="Map: Caribbean Sea west, Atlantic Ocean east"><rect width="200" height="160" fill="#5fc4e8"/><rect x="200" width="200" height="160" fill="#2a6fb5"/>
  ${[[190,20],[198,45],[205,70],[210,92],[214,112],[212,128],[206,145]].map(([x,y])=>`<ellipse cx="${x}" cy="${y}" rx="9" ry="6" fill="#6cbf4b" stroke="#3d7a2a"/>`).join('')}
@@ -79,26 +80,62 @@ const CHEER=['Yay!','Great job!','You did it!','Wonderful!','Roar-some!','Beep b
 const cheer=()=>CHEER[Math.floor(Math.random()*CHEER.length)];
 function dinoHome(p){h(`<div class="screen dino"><header class="top"><button class="btn ghost" id="bk">🏠</button><h1>${p.avatar} Dino Truck Town</h1><span class="stars">⭐ ${p.stars||0}</span></header>
  <div class="grid tod">${TODDLER.map((a,i)=>`<button class="card huge" data-i="${i}" aria-label="${a.title}"><div class="mega">${a.icon}</div></button>`).join('')}</div></div>`);
- Say.speak('Hello '+p.name+'! Tap a picture to play.');on('#bk',home);on('.huge',el=>{const a=TODDLER[+el.dataset.i];({count:countGame,colour:colourGame,shape:shapeGame})[a.id](p,0);});}
-function dinoDone(p,id){p.prog=p.prog||{};const r=p.prog[id]||{plays:0};r.plays++;p.prog[id]=r;p.stars=(p.stars||0)+1;save();}
-function party(p,next){h(`<div class="screen center dino"><div class="mega dance">🦖🎉🚚</div><button class="btn huge-btn" id="nx" aria-label="again">▶️</button> <button class="btn huge-btn ghost" id="hm" aria-label="home">🏠</button></div>`);Snd.good();Snd.stomp();Say.speak(cheer()+' You are a superstar!');on('#nx',next);on('#hm',()=>dinoHome(p));}
-const NUM=['zero','one','two','three','four','five'];
-function countGame(p,r){const n=1+Math.floor(Math.random()*5),tr=['🚚','🚒','🚜','🚌','🚛'][r%5];let c=0;
- h(`<div class="screen dino"><header class="top"><button class="btn ghost" id="bk">⬅</button><button class="btn ghost" id="rp" aria-label="say again">🔊</button></header><div class="trucks">${Array.from({length:n},(_,i)=>`<button class="truck" data-i="${i}">${tr}</button>`).join('')}</div><div class="counter" id="ct"></div></div>`);
- const prompt=()=>Say.speak(`Let's count the trucks! Tap each truck.`);prompt();on('#bk',()=>dinoHome(p));on('#rp',prompt);
- document.querySelectorAll('.truck').forEach(el=>el.addEventListener('click',()=>{if(el.classList.contains('done'))return Snd.honk();el.classList.add('done');c++;Snd.count(c);$('#ct').textContent=c;Say.speak(NUM[c]);if(c===n){setTimeout(()=>{Say.speak(`${NUM[n]} trucks! ${cheer()}`);Snd.honk();},700);setTimeout(()=>{dinoDone(p,'count');party(p,()=>countGame(p,r+1));},2600);}}));}
+ Say.speak('Hello '+p.name+'! Tap a picture to play.');on('#bk',home);on('.huge',el=>{const a=TODDLER[+el.dataset.i];RND={id:a.id,done:0};({count:countGame,colour:colourGame,shape:shapeGame,abc:abcExplore,findabc:abcFind})[a.id](p,0);});}
+let RND={id:null,done:0};
+// Progress strip of 10 dino footprints; filled = done this round.
+function strip(){return `<div class="strip" aria-hidden="true">${Array.from({length:10},(_,i)=>`<span class="${i<RND.done?'on':''}">🐾</span>`).join('')}</div>`;}
+// Records one finished round of 10 (no scores: toddlers never fail).
+function dinoDone(p,id){p.prog=p.prog||{};const r=p.prog[id]||{plays:0};r.plays=(r.plays||0)+1;r.last=today();p.prog[id]=r;p.stars=(p.stars||0)+1;save();}
+// Call after each success: short praise, then next item; big party after 10.
+function itemDone(p,id,next){RND.done++;if(RND.done>=10){dinoDone(p,id);party(p,()=>{RND.done=0;next();});return;}
+ const o=document.createElement('div');o.className='praise';o.innerHTML=`<div class="mega pop">${['🦕','🦖','⭐','🚚','🎉'][RND.done%5]}</div>${strip()}`;document.body.appendChild(o);setTimeout(()=>{o.remove();next();},1100);}
+function party(p,next){h(`<div class="screen center dino"><div class="mega dance">🦖🎉🦕</div>${strip()}<div class="score">10!</div><button class="btn huge-btn" id="nx" aria-label="again">▶️</button> <button class="btn huge-btn ghost" id="hm" aria-label="home">🏠</button></div>`);Snd.good();Snd.stomp();Say.speak('Ten! You did ten! '+cheer()+' You are a superstar!');on('#nx',next);on('#hm',()=>dinoHome(p));}
+const NUM=['zero','one','two','three','four','five','six','seven','eight','nine','ten'];
+// Each round uses ONE vehicle type; names match Android (Noto) emoji art. [emoji, singular, plural]
+const VEHICLES=[['🚚','delivery truck','delivery trucks'],['🚛','big truck','big trucks'],['🚒','fire truck','fire trucks'],['🚌','bus','buses'],['🚗','car','cars'],['🚜','tractor','tractors'],['🚑','ambulance','ambulances'],['🚓','police car','police cars'],['🚕','taxi','taxis'],['🏎\uFE0F','race car','race cars']];
+const vname=(v,n)=>n===1?v[1]:v[2];
+let countBag=[];
+function nextCount(r){ // 1-10 from a shuffled bag: each number once per 10 rounds, first round never 1, no repeat across bags
+ if(!countBag.length){let b;do{b=shuffle([1,2,3,4,5,6,7,8,9,10]);}while((r===0&&b[0]===1)||b[0]===nextCount.last);countBag=b;}
+ return nextCount.last=countBag.shift();}
+function countGame(p,r){const n=nextCount(r),v=VEHICLES[(r+Math.floor(Math.random()*VEHICLES.length))%VEHICLES.length];let c=0;
+ h(`<div class="screen dino"><header class="top"><button class="btn ghost" id="bk">⬅</button>${strip()}<button class="btn ghost" id="rp" aria-label="say again">🔊</button></header><div class="trucks${n>5?' many':''}">${Array.from({length:n},(_,i)=>`<button class="truck" data-i="${i}" aria-label="${v[1]}">${v[0]}</button>`).join('')}</div><div class="counter" id="ct"></div><div class="vlabel" id="vl"></div></div>`);
+ const prompt=()=>Say.speak(n===1?`Let's count! Tap the ${v[1]}.`:`Let's count the ${v[2]}! Tap the ${v[2]}.`);prompt();on('#bk',()=>dinoHome(p));on('#rp',prompt);
+ document.querySelectorAll('.truck').forEach(el=>el.addEventListener('click',()=>{if(el.classList.contains('done'))return Snd.honk();el.classList.add('done');c++;Snd.count(c);$('#ct').textContent=c;$('#vl').textContent=`${c} ${vname(v,c)}`;Say.speak(NUM[c]);if(c===n){setTimeout(()=>{Say.speak(`${NUM[n]} ${vname(v,n)}! ${cheer()}`);Snd.honk();},700);setTimeout(()=>itemDone(p,'count',()=>countGame(p,r+1)),2300);}}));}
 const COLS=[['red','#e63946'],['blue','#1d7fd6'],['yellow','#ffd23f'],['green','#2a9d4a']];
 function dinoSVG(col,size=150){return `<svg viewBox="0 0 120 100" width="${size}" height="${size*0.83}"><ellipse cx="55" cy="62" rx="38" ry="24" fill="${col}"/><rect x="78" y="22" width="14" height="40" rx="7" fill="${col}"/><ellipse cx="94" cy="22" rx="16" ry="11" fill="${col}"/><circle cx="99" cy="19" r="3" fill="#222"/><rect x="30" y="78" width="11" height="18" rx="4" fill="${col}"/><rect x="62" y="78" width="11" height="18" rx="4" fill="${col}"/><polygon points="17,58 0,70 20,68" fill="${col}"/></svg>`;}
 function colourGame(p,r){const pick=shuffle(COLS).slice(0,2+Math.min(r,1)),t=pick[Math.floor(Math.random()*pick.length)];
- h(`<div class="screen dino center"><header class="top"><button class="btn ghost" id="bk">⬅</button><button class="btn ghost" id="rp">🔊</button></header><div class="target">${dinoSVG(t[1],170)}</div><div class="opts">${pick.map(c=>`<button class="blob" data-c="${c[0]}" style="background:${c[1]}" aria-label="${c[0]}"></button>`).join('')}</div></div>`);
+ h(`<div class="screen dino center"><header class="top"><button class="btn ghost" id="bk">⬅</button>${strip()}<button class="btn ghost" id="rp">🔊</button></header><div class="target">${dinoSVG(t[1],170)}</div><div class="opts">${pick.map(c=>`<button class="blob" data-c="${c[0]}" style="background:${c[1]}" aria-label="${c[0]}"></button>`).join('')}</div></div>`);
  const prompt=()=>Say.speak(`This dino is ${t[0]}. Can you find ${t[0]}?`);prompt();on('#bk',()=>dinoHome(p));on('#rp',prompt);
- document.querySelectorAll('.blob').forEach(el=>el.addEventListener('click',()=>{if(el.dataset.c===t[0]){Snd.good();Say.speak(`${t[0]}! ${cheer()}`);setTimeout(()=>{dinoDone(p,'colour');party(p,()=>colourGame(p,r+1));},1600);}else{Snd.count(1);el.classList.add('wiggle');Say.speak(`That is ${el.dataset.c}. Let's find ${t[0]}, like the dino!`);document.querySelector(`[data-c="${t[0]}"]`).classList.add('glow');}}));}
+ document.querySelectorAll('.blob').forEach(el=>el.addEventListener('click',()=>{if(el.dataset.c===t[0]){Snd.good();Say.speak(`${t[0]}! ${cheer()}`);setTimeout(()=>itemDone(p,'colour',()=>colourGame(p,r+1)),1300);}else{Snd.count(1);el.classList.add('wiggle');Say.speak(`That is ${el.dataset.c}. Let's find ${t[0]}, like the dino!`);document.querySelector(`[data-c="${t[0]}"]`).classList.add('glow');}}));}
 const SH={circle:'<circle cx="50" cy="50" r="40"/>',square:'<rect x="12" y="12" width="76" height="76"/>',triangle:'<polygon points="50,8 92,90 8,90"/>'};
 function shp(n,col){return `<svg viewBox="0 0 100 100" width="120" height="120" fill="${col}" stroke="#333" stroke-width="4">${SH[n]}</svg>`;}
 function shapeGame(p,r){const names=shuffle(Object.keys(SH)),t=names[0];
- h(`<div class="screen dino center"><header class="top"><button class="btn ghost" id="bk">⬅</button><button class="btn ghost" id="rp">🔊</button></header><div class="target row"><span class="mega">🦖</span>${shp(t,'#ff9f1c')}</div><div class="opts">${shuffle(names).map(n=>`<button class="blob shapeb" data-s="${n}" aria-label="${n}">${shp(n,'#ffd166')}</button>`).join('')}</div></div>`);
+ h(`<div class="screen dino center"><header class="top"><button class="btn ghost" id="bk">⬅</button>${strip()}<button class="btn ghost" id="rp">🔊</button></header><div class="target row"><span class="mega">🦖</span>${shp(t,'#ff9f1c')}</div><div class="opts">${shuffle(names).map(n=>`<button class="blob shapeb" data-s="${n}" aria-label="${n}">${shp(n,'#ffd166')}</button>`).join('')}</div></div>`);
  const prompt=()=>Say.speak(`Dino has a ${t}. Find the ${t}!`);prompt();on('#bk',()=>dinoHome(p));on('#rp',prompt);
- document.querySelectorAll('.shapeb').forEach(el=>el.addEventListener('click',()=>{if(el.dataset.s===t){Snd.good();Snd.stomp();Say.speak(`A ${t}! ${cheer()}`);setTimeout(()=>{dinoDone(p,'shape');party(p,()=>shapeGame(p,r+1));},1600);}else{Snd.count(2);el.classList.add('wiggle');Say.speak(`That is a ${el.dataset.s}. Let's find the ${t}!`);document.querySelector(`[data-s="${t}"]`).classList.add('glow');}}));}
+ document.querySelectorAll('.shapeb').forEach(el=>el.addEventListener('click',()=>{if(el.dataset.s===t){Snd.good();Snd.stomp();Say.speak(`A ${t}! ${cheer()}`);setTimeout(()=>itemDone(p,'shape',()=>shapeGame(p,r+1)),1300);}else{Snd.count(2);el.classList.add('wiggle');Say.speak(`That is a ${el.dataset.s}. Let's find the ${t}!`);document.querySelector(`[data-s="${t}"]`).classList.add('glow');}}));}
+
+// ---- ABC (toddler) ----
+const art=L=>L[0]==='X'?`X is in ${L[3]}`:`${L[0]} is for ${L[3]}`;
+const sayLetter=L=>L[0]==='X'?`${L[1]}. ${L[1]} says ${L[2]}, at the end of ${L[3]}.`:`${L[1]}. ${L[1]} says ${L[2]}, ${L[2]}, ${L[3]}. ${L[1]} is for ${L[3]}!`;
+function abcExplore(p,r){h(`<div class="screen dino"><header class="top"><button class="btn ghost" id="bk">⬅</button>${strip()}<button class="btn ghost" id="rp">🔊</button></header>
+ <div class="abc-grid">${ABC.map((L,i)=>`<button class="abc-key" data-i="${i}" aria-label="${L[0]}"><span class="up">${L[0]}</span><span class="lo">${L[0].toLowerCase()}</span></button>`).join('')}</div></div>`);
+ const prompt=()=>Say.speak('Tap a letter to hear it!');prompt();on('#bk',()=>dinoHome(p));on('#rp',prompt);
+ document.querySelectorAll('.abc-key').forEach(el=>el.addEventListener('click',()=>RND.done>=10?(dinoDone(p,'abc'),party(p,()=>{RND.done=0;abcCard(p,+el.dataset.i);})):abcCard(p,+el.dataset.i)));}
+function abcCard(p,i){const L=ABC[i];p.prog=p.prog||{};const r=p.prog.abc||{plays:0,seen:[]};if(!r.seen.includes(L[0]))r.seen.push(L[0]);r.views=(r.views||0)+1;p.prog.abc=r;RND.id='abc';RND.done=Math.min(10,RND.done+1);save();Snd.count(i%5+1);
+ h(`<div class="screen dino center"><header class="top"><button class="btn ghost" id="bk">⬅</button>${strip()}<button class="btn ghost" id="rp">🔊</button></header>
+ <div class="abc-card"><div class="abc-big"><span>${L[0]}</span><span class="lo">${L[0].toLowerCase()}</span></div><div class="mega">${L[4]}</div><div class="vlabel">${art(L)}</div></div>
+ <div class="opts"><button class="btn huge-btn ghost" id="pv" aria-label="previous">◀️</button><button class="btn huge-btn ghost" id="nx" aria-label="next">▶️</button></div></div>`);
+ const say=()=>Say.speak(sayLetter(L),0.85);say();on('#bk',()=>abcExplore(p));on('#rp',say);on('.abc-big',say);
+ const go=j=>RND.done>=10?(dinoDone(p,'abc'),party(p,()=>{RND.done=0;abcCard(p,j);})):abcCard(p,j);on('#pv',()=>go((i+25)%26));on('#nx',()=>go((i+1)%26));}
+function abcFind(p,r){const k=r<4?2:3,ch=shuffle(ABC).slice(0,k),t=ch[Math.floor(Math.random()*k)];
+ h(`<div class="screen dino center"><header class="top"><button class="btn ghost" id="bk">⬅</button>${strip()}<button class="btn ghost" id="rp">🔊</button></header>
+ <div class="target row"><span class="mega">${t[4]}</span></div><div class="opts">${ch.map(L=>`<button class="abc-choice" data-l="${L[0]}" aria-label="${L[0]}"><span class="up">${L[0]}</span><span class="lo">${L[0].toLowerCase()}</span></button>`).join('')}</div></div>`);
+ const prompt=()=>Say.speak(`Find the letter ${t[1]}. ${t[1]}, for ${t[3]}!`,0.85);prompt();on('#bk',()=>dinoHome(p));on('#rp',prompt);
+ document.querySelectorAll('.abc-choice').forEach(el=>el.addEventListener('click',()=>{const L=ABC.find(x=>x[0]===el.dataset.l);
+  if(L===t){el.classList.add('glow');Snd.good();Say.speak(`${t[1]}! ${cheer()} ${t[1]} is for ${t[3]}.`,0.9);p.prog=p.prog||{};const q=p.prog.findabc||{plays:0,found:[]};q.found=q.found||[];if(!q.found.includes(t[0]))q.found.push(t[0]);p.prog.findabc=q;
+   document.querySelectorAll('.abc-choice').forEach(b=>b.disabled=true);setTimeout(()=>itemDone(p,'findabc',()=>abcFind(p,r+1)),2000);}
+  else{Snd.count(2);el.classList.add('wiggle');Say.speak(`That is ${L[1]}. Let's find ${t[1]}, ${t[1]} for ${t[3]}!`,0.9);document.querySelector(`[data-l="${t[0]}"]`).classList.add('glow');}}));}
 document.addEventListener('visibilitychange',()=>{if(document.hidden&&'speechSynthesis' in window)speechSynthesis.cancel();});
 if('serviceWorker' in navigator)navigator.serviceWorker.register('./sw.js').catch(()=>{});
 window.CKL={S,home};home();
