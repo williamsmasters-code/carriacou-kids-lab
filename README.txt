@@ -59,3 +59,30 @@ After changing any file
 Privacy
   Nothing is sent anywhere. Clearing the browser's site data for this app
   erases all players and progress.
+
+Money pictures (Money Market Beats): source and licence
+Daniel's decision (Oct 2026): after being told about Article 18 of the ECCB Agreement Act
+(Cap. 85) and copyright, Daniel chose to show REAL images of EC money for classroom learning.
+They are shown small, with an "Educational use" label; there is no print or download feature
+(right-click/long-press and dragging are switched off on the pictures). No ECCB permission
+was found or obtained. Files are in img/money/ (WebP, cached by sw.js for offline use).
+If an image fails to load, the app shows the older drawing instead.
+On "Which note/coin is this?" questions the picture is cropped so the number does not show.
+
+Notes: 2019 polymer series, BACK side (landmarks). Wikimedia Commons, uploader
+User:Subash05102001, licence CC BY-SA 4.0 (https://creativecommons.org/licenses/by-sa/4.0/).
+Changed from the original: converted to WebP.
+  note_5_back.webp  <- https://upload.wikimedia.org/wikipedia/commons/5/57/East_caribbean_states_eccb_5_dollars_2019.00.00_b240_pnl_ad_000000_r.jpg
+  note_10_back.webp  <- https://upload.wikimedia.org/wikipedia/commons/0/07/East_caribbean_states_eccb_10_dollars_2019.00.00_b241_pnl_ad_000000_r.jpg
+  note_20_back.webp  <- https://upload.wikimedia.org/wikipedia/commons/5/59/East_caribbean_states_eccb_20_dollars_2019.00.00_b242_pnl_ad_000000_r.jpg
+  note_50_back.webp  <- https://upload.wikimedia.org/wikipedia/commons/c/c0/East_caribbean_states_eccb_50_dollars_2019.00.00_b243_pnl_ad_000000_r.jpg
+  note_100_back.webp  <- https://upload.wikimedia.org/wikipedia/commons/f/f8/East_caribbean_states_eccb_100_dollars_2019.00.00_b244_pnl_ad_000000_r.jpg
+
+Coins: Bibliotheque nationale de France (Gallica) scans on Wikimedia Commons, marked
+public domain. Reverse (ship) side, cropped, resized to 240 px, converted to WebP.
+  coin_10c.webp  <- https://upload.wikimedia.org/wikipedia/commons/8/89/Monnaie_-_Cara%C3%AFbes_orientales_anglaises%2C_Elisabeth_II%2C_10_cents%2C_1987_-_btv1b11337166m_%282_of_2%29.jpg
+  coin_25c.webp  <- https://upload.wikimedia.org/wikipedia/commons/4/4b/Monnaie_-_Cara%C3%AFbes_orientales_anglaises%2C_Elisabeth_II%2C_25_cents%2C_1987_-_btv1b11337161c_%282_of_2%29.jpg
+  coin_1.webp    <- https://upload.wikimedia.org/wikipedia/commons/1/1b/Monnaie_-_Cara%C3%AFbes_orientales_anglaises%2C_Elisabeth_II%2C_1_dollar%2C_2015_-_btv1b11337173p_%282_of_2%29.jpg
+  (10c and 25c are 1987 coins; the ship design is the same today.)
+5c coin: no free image of the current round 5c could be found (the only one is the old
+scalloped 1989 coin), so the 5c stays a drawing.

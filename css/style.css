@@ -60,3 +60,10 @@ input[type=range]{width:min(400px,70%)}
 .pop{animation:pop .5s ease-out}@keyframes pop{from{transform:scale(.2)}to{transform:scale(1)}}
 .score{font-size:72px;font-weight:800;color:#3a2a7a;margin:0}
 @media (orientation:portrait){.strip{font-size:24px}}
+.art.clock{width:230px}.art.money,.art.blocks{max-width:100%;height:auto}
+.splash{animation:splash .55s cubic-bezier(.2,1.4,.4,1) both;transform-box:fill-box;transform-origin:center}
+@keyframes splash{from{opacity:0;scale:.2}to{opacity:1;scale:1}}
+
+/* Real money images: drawings hidden unless an image fails; no saving/dragging. */
+.mitem.hasimg>.fb{display:none}.mitem.fail>.fb{display:inline}.mitem.fail>.vl,.mitem.fail>.ring{display:none}
+.art.money{-webkit-touch-callout:none;user-select:none;-webkit-user-select:none}.art.money image{pointer-events:none}

@@ -54,10 +54,10 @@ function quiz(p,w){let qs=shuffle(w.questions).slice(0,ROUND),i=0,score=0,firstT
  const show=()=>{const q=qs[i];const order=shuffle(q.c.map((c,k)=>k));
  h(`<div class="screen lab"><header class="top"><button class="btn ghost" id="bk">⬅</button><h1>${w.icon} ${w.title}</h1><span class="stars">Question ${i+1} of ${qs.length} · ⭐ ${score}</span></header>
  ${i===0?`<p class="intro">${w.intro} <button class="btn sm" id="si">🔊</button></p>`:''}
- ${w.map?mapSVG():''}${q.art?shapeSVG(q.art):''}
- <div class="qbox"><p class="q">${q.q}</p><button class="btn sm" id="sq">🔊 Read to me</button></div>
- <div class="choices">${order.map(k=>`<button class="btn choice" data-k="${k}">${esc(q.c[k])}</button>`).join('')}</div><p class="fb" id="fb"></p><p class="src small">Source: ${w.source}${q.std?' · Standard '+q.std:''}</p></div>`);
- on('#bk',()=>labHome(p));on('#sq',()=>Say.speak(q.q+'. '+q.c.join(', or ')));if($('#si'))on('#si',()=>Say.speak(w.intro));
+ ${w.map?mapSVG():''}${q.art?shapeSVG(q.art):''}${q.svg||''}
+ <div class="qbox"><p class="q">${q.q}</p><button class="btn sm" id="sq">🔊 Read to me</button>${q.beat?' <button class="btn sm" id="bt">🥁 Play the beat</button>':''}</div>
+ <div class="choices">${order.map(k=>`<button class="btn choice" data-k="${k}">${esc(q.c[k])}</button>`).join('')}</div><p class="fb" id="fb"></p><p class="src small">Source: ${w.source}${q.std?' · Code '+q.std:''}</p></div>`);
+ on('#bk',()=>labHome(p));on('#sq',()=>{const g=[...document.querySelectorAll('svg.money,svg.blocks')].find(e=>e.getAttribute('aria-label')!=='money');Say.speak(q.q+(g?(g.classList.contains('blocks')?' Look at the blocks and count the hundreds, tens and ones.':' The picture shows '+g.getAttribute('aria-label').replace(/^money: /,'')+'.'):'')+' '+q.c.join(', or '));});if($('#si'))on('#si',()=>Say.speak(w.intro));if($('#bt'))on('#bt',()=>{q.beat.forEach((n,k)=>{Snd.tone(k%2?330:220,0.12,'triangle',k*0.5,0.3);Snd.tone(110,0.15,'sine',k*0.5,0.4);});Say.speak(q.beat.join(', ')+', what comes next?',0.8);});
  on('.choice',el=>{const k=+el.dataset.k;if(k===q.a){el.classList.add('ok');if(firstTry)score++;Snd.good();$('#fb').innerHTML='✅ '+q.why;Say.speak('Great thinking! '+q.why);document.querySelectorAll('.choice').forEach(b=>b.disabled=true);setTimeout(()=>{i++;firstTry=true;i<qs.length?show():finish();},2600);}
   else{firstTry=false;el.disabled=true;el.classList.add('no');Snd.soft();$('#fb').textContent='Not quite. Look for the clue and try another one!';}});};
  const finish=()=>{p.prog=p.prog||{};const r=p.prog[w.id]||{best:0,plays:0};r.plays++;r.best=Math.max(r.best,score);r.rounds=(r.rounds||[]).concat([{d:today(),s:score,of:qs.length}]).slice(-30);p.prog[w.id]=r;p.stars=(p.stars||0)+score;p.badges=p.badges||[];let nb='';const bn=w.title.split(' ')[0]+' Master';if(score>=Math.ceil(qs.length*0.8)&&!p.badges.includes(bn)){p.badges.push(bn);nb=bn;}save();
