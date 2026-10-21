@@ -56,7 +56,7 @@ function quiz(p,w){let qs=shuffle(w.questions).slice(0,ROUND),i=0,score=0,firstT
  ${i===0?`<p class="intro">${w.intro} <button class="btn sm" id="si">🔊</button></p>`:''}
  ${w.map?mapSVG():''}${q.art?shapeSVG(q.art):''}
  <div class="qbox"><p class="q">${q.q}</p><button class="btn sm" id="sq">🔊 Read to me</button></div>
- <div class="choices">${order.map(k=>`<button class="btn choice" data-k="${k}">${esc(q.c[k])}</button>`).join('')}</div><p class="fb" id="fb"></p><p class="src small">Source: ${w.source}</p></div>`);
+ <div class="choices">${order.map(k=>`<button class="btn choice" data-k="${k}">${esc(q.c[k])}</button>`).join('')}</div><p class="fb" id="fb"></p><p class="src small">Source: ${w.source}${q.std?' · Standard '+q.std:''}</p></div>`);
  on('#bk',()=>labHome(p));on('#sq',()=>Say.speak(q.q+'. '+q.c.join(', or ')));if($('#si'))on('#si',()=>Say.speak(w.intro));
  on('.choice',el=>{const k=+el.dataset.k;if(k===q.a){el.classList.add('ok');if(firstTry)score++;Snd.good();$('#fb').innerHTML='✅ '+q.why;Say.speak('Great thinking! '+q.why);document.querySelectorAll('.choice').forEach(b=>b.disabled=true);setTimeout(()=>{i++;firstTry=true;i<qs.length?show():finish();},2600);}
   else{firstTry=false;el.disabled=true;el.classList.add('no');Snd.soft();$('#fb').textContent='Not quite. Look for the clue and try another one!';}});};
