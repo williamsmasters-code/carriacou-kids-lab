@@ -59,21 +59,39 @@ const POOL_N=100,roundSize=w=>(w.grade||3)>=3?20:ROUND,bigGrade=w=>(w.grade||3)>
 const qKey=q=>q.q+'|'+(q.svg||'')+'|'+q.c[q.a];
 function seeded(a){return()=>{a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296;};}
 function hashStr(t){let x=2166136261;for(let i=0;i<t.length;i++)x=Math.imul(x^t.charCodeAt(i),16777619);return x>>>0;}
+// ckl-v17 pool builder (seeded). Still used for generator wings, and to rebuild a v17 pool when migrating solved flags.
+function poolV17(w,p,gen,qs){const R0=Math.random;Math.random=seeded(p.seed^hashStr(w.id));const seen=new Set(),out=[];const add=q=>{const k=qKey(q);if(out.length<POOL_N&&!seen.has(k)){seen.add(k);out.push(Object.assign({},q));return 1;}return 0;};
+ try{if(gen){let stale=0;for(let t=0;t<800&&stale<60&&out.length<POOL_N;t++){let n=0;for(const q of gen())n+=add(q);stale=n?0:stale+1;}}
+  else{const L=(qs||[]).slice();for(let i=L.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[L[i],L[j]]=[L[j],L[i]];}L.forEach(add);}}
+ finally{Math.random=R0;}out.forEach((q,i)=>q._pi=i);return out;}
+// ckl-v18 fact-bank wings (w.bank): the pool is the bank itself; each question's index _pi is the permanent ordinal in its id
+// (e.g. 'g5m-042' -> 42), so solved flags survive later bank versions as long as the id still exists.
+const idOrd=id=>+String(id).split('-').pop();
 function poolFor(w,p){if(!bigGrade(w)||!p){const k='_'+w.id;if(POOLS[k])return POOLS[k];const seen=new Set(),out=[];const add=q=>{const kk=qKey(q);if(!seen.has(kk)){seen.add(kk);out.push(q);}};if(w.gen){for(let t=0;t<60;t++)w.gen().forEach(add);}else(w.questions||[]).forEach(add);return POOLS[k]=out;}
+ if(w.bank){const k='b|'+w.id;if(!POOLS[k])POOLS[k]=w.bank.filter(q=>!q.retired).map(q=>Object.assign({},q,{_pi:idOrd(q.id)}));if(p)migrateSV(p,w);return POOLS[k];}
  if(!p.seed){p.seed=(Math.random()*4294967295)>>>0||1;save();}const ck=p.seed+'|'+w.id;if(POOLS[ck])return POOLS[ck];
- const R0=Math.random;Math.random=seeded(p.seed^hashStr(w.id));const seen=new Set(),out=[];const add=q=>{const k=qKey(q);if(out.length<POOL_N&&!seen.has(k)){seen.add(k);out.push(Object.assign({},q));return 1;}return 0;};
- try{if(w.gen){let stale=0;for(let t=0;t<800&&stale<60&&out.length<POOL_N;t++){let n=0;for(const q of w.gen())n+=add(q);stale=n?0:stale+1;}}
-  else{const L=(w.questions||[]).slice();for(let i=L.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[L[i],L[j]]=[L[j],L[i]];}L.forEach(add);}}
- finally{Math.random=R0;}out.forEach((q,i)=>q._pi=i);return POOLS[ck]=out;}
-function svGet(p,w){const v=((p.sv||{})[w.id]||'').split(':');const n=+v[0]||0,bits=new Uint8Array(Math.ceil(POOL_N/8));if(v[1]){const b=atob(v[1]);for(let i=0;i<b.length&&i<bits.length;i++)bits[i]=b.charCodeAt(i);}return{n,bits};}
-function svCount(p,w){const{bits}=svGet(p,w);let c=0;for(const x of bits)for(let b=x;b;b&=b-1)c++;return c;}
+ return POOLS[ck]=poolV17(w,p,w.gen,w.questions);}
+// One-time move of a ckl-v17 flag string ("n:bits", indexed by the old seeded pool) to the ckl-v18 id format ("b2:bits").
+// A flag is kept when the old question (same text and answer) is still in the bank.
+const qTA=q=>String(q.q).replace(/<[^>]+>/g,'')+'|'+q.c[q.a];
+function migrateSV(p,w){const v=(p.sv||{})[w.id];if(!v||v.startsWith('b2:'))return;const old=v.split(':'),bits=old[1]?atob(old[1]):'';
+ const b2=new Uint8Array(BITS);let kept=0,lost=0;
+ if(bits&&p.seed){const op=poolV17(w,p,w.legacyGen,w.legacyQ),map={};w.bank.forEach(q=>map[qTA(q)]=idOrd(q.id));
+  const tpl=q=>String(q.q).replace(/<[^>]+>/g,'').replace(/\d+(\.\d+)?/g,'#'),fam={};w.bank.forEach(q=>(fam[tpl(q)]=fam[tpl(q)]||[]).push(idOrd(q.id)));
+  const set=o=>{b2[o>>3]|=1<<(o&7);},has=o=>b2[o>>3]&(1<<(o&7));
+  op.forEach((q,i)=>{if(bits.charCodeAt(i>>3)&(1<<(i&7))){const o=map[qTA(q)];if(o!==undefined){set(o);kept++;}else{const f=(fam[tpl(q)]||[]).find(x=>!has(x));if(f!==undefined){set(f);kept++;}else lost++;}}});}
+ // (a solved number-variant that was dropped as padding passes its credit to an unsolved bank item of the same kind)
+ kept=0;for(const x of b2)for(let b=x;b;b&=b-1)kept++;p.sv[w.id]='b2:'+btoa(String.fromCharCode(...b2));p.svMig=p.svMig||{};p.svMig[w.id]={kept,lost};save();}
+const BITS=32; // up to 256 question ordinals per wing
+function svGet(p,w){const raw=(p.sv||{})[w.id]||'',b2=raw.startsWith('b2:'),v=b2?['',raw.slice(3)]:raw.split(':');const n=b2?0:(+v[0]||0),bits=new Uint8Array(BITS);if(v[1]){const b=atob(v[1]);for(let i=0;i<b.length&&i<bits.length;i++)bits[i]=b.charCodeAt(i);}return{n,bits,b2};}
 function svHas(p,w,i){return!!(svGet(p,w).bits[i>>3]&(1<<(i&7)));}
-function svMark(p,w,i,n){const g=svGet(p,w);g.bits[i>>3]|=1<<(i&7);p.sv=p.sv||{};p.sv[w.id]=n+':'+btoa(String.fromCharCode(...g.bits));}
-const svSize=(p,w)=>svGet(p,w).n||poolFor(w,p).length;
+function svCount(p,w){if(w.bank)return poolFor(w,p).filter(q=>svHas(p,w,q._pi)).length;const{bits}=svGet(p,w);let c=0;for(const x of bits)for(let b=x;b;b&=b-1)c++;return c;}
+function svMark(p,w,i,n){const g=svGet(p,w);g.bits[i>>3]|=1<<(i&7);p.sv=p.sv||{};let L=g.bits.length;while(L>1&&!g.bits[L-1])L--;const enc=btoa(String.fromCharCode(...g.bits.slice(0,L)));p.sv[w.id]=w.bank?'b2:'+enc:n+':'+enc;}
+const svSize=(p,w)=>w.bank?poolFor(w,p).length:(svGet(p,w).n||poolFor(w,p).length);
 function drawRound(p,w){const pool=poolFor(w,p);if(!bigGrade(w))return shuffle(pool).slice(0,ROUND);const n=roundSize(w);
  const un=shuffle(pool.filter(q=>!svHas(p,w,q._pi))),so=shuffle(pool.filter(q=>svHas(p,w,q._pi)));return un.concat(so).slice(0,n);}
 // Marks a pool question solved (first-try correct only). Returns true when this completes the whole pool.
-function solve(p,w,q){if(!bigGrade(w))return false;const pool=poolFor(w,p);let i=q._pi;if(i===undefined){const k=qKey(q);i=pool.findIndex(x=>qKey(x)===k);}if(i<0)return false;
+function solve(p,w,q){if(!bigGrade(w))return false;const pool=poolFor(w,p);let i=q._pi;if(i===undefined){const k=w.bank?qTA(q):qKey(q);const f=pool.find(x=>(w.bank?qTA(x):qKey(x))===k);i=f?f._pi:-1;}if(i<0)return false;
  if(!svHas(p,w,i)){svMark(p,w,i,pool.length);save();}return svCount(p,w)>=pool.length;}
 // ---- Grades: each big-kid profile has a grade (1-6). Built grades list their wings here. ----
 const BUILT={1:()=>window.G1_WINGS||[],2:()=>window.G2_WINGS||[],3:()=>window.G3_WINGS||[],4:()=>window.G4_WINGS||[],5:()=>window.G5_WINGS||[],6:()=>window.G6_WINGS||[]};
