@@ -53,7 +53,7 @@ function comingSoon(p,g){const f=fallbackGrade(g);h(`<div class="screen center l
 function shuffle(a){a=a.slice();for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a;}
 const ROUND=10;
 // ---- Grades: each big-kid profile has a grade (1-6). Built grades list their wings here. ----
-const BUILT={1:()=>window.G1_WINGS||[],2:()=>window.G2_WINGS||[],3:()=>window.G3_WINGS||[],4:()=>window.G4_WINGS||[]};
+const BUILT={1:()=>window.G1_WINGS||[],2:()=>window.G2_WINGS||[],3:()=>window.G3_WINGS||[],4:()=>window.G4_WINGS||[],5:()=>window.G5_WINGS||[]};
 const gradeOf=p=>p.grade||3;
 const wingsFor=g=>BUILT[g]?BUILT[g]():[];
 function fallbackGrade(g){const b=Object.keys(BUILT).map(Number);return b.filter(x=>x<g).pop()||b[0];}
