@@ -86,3 +86,14 @@ public domain. Reverse (ship) side, cropped, resized to 240 px, converted to Web
   (10c and 25c are 1987 coins; the ship design is the same today.)
 5c coin: no free image of the current round 5c could be found (the only one is the old
 scalloped 1989 coin), so the 5c stays a drawing.
+
+Extracurricular Activities (Style Studio and Prize Store)
+  Coins: Music Lab 1 star = 1 coin; Dino Truck Town 5 coins per round of 10. Old progress
+  was converted once. Spending never lowers stars, badges or scores. No real money, no ads.
+  Avatar and all 211 items are drawn in code: js/avatar.js (default store items, 162).
+  Seasonal events: js/events.js. To add an event, copy a block, set start/end as 'MM-DD'
+  (can cross New Year) and list items per slot. Event items show only in their window
+  (tablet date); bought items stay owned.
+  Parent dashboard: per player, Parent unlock (PIN) and/or Milestone unlock (every N rounds
+  today, or a new badge), session minutes, coins +10/-10, Lock now. Studio time counts toward
+  the daily limit.
