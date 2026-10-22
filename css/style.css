@@ -101,3 +101,4 @@ input[type=range]{width:min(400px,70%)}
 .g1groups{display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:10px}.g1groups b{font-size:2.2rem}
 .g1groups .g1pics{max-width:230px;margin:0}.g1groups .grp{border:3px dashed #6a4cdf;border-radius:16px;padding:6px}
 .wings.g1 .pname{font-size:1.35rem}
+.frac{display:block;margin:6px auto}.g1pics.small{font-size:1.7rem}.hop{font-size:1.2rem;background:#eee;border-radius:10px;padding:4px 8px}

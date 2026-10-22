@@ -46,19 +46,19 @@ function progressText(p){const pr=p.prog||{};const list=p.world==='dino'?TODDLER
 function labHome(p,fb){const g=gradeOf(p),own=wingsFor(g),W=fb?wingsFor(fb):own;if(!own.length&&!fb)return comingSoon(p,g);h(`<div class="screen lab"><header class="top"><button class="btn ghost" id="bk">🏠</button><h1>${miniAva(p,'hdr')} ${esc(p.name)}'s Mad Scientist Music Lab <span class="gtag">Grade ${g}</span></h1><span class="stars">⭐ ${p.stars||0} ${coinBadge(p)}</span></header>
  <button class="btn xsbtn" id="xs">🎨 Extracurricular Activities: Style Studio and Prize Store</button>
  ${fb?`<p class="lead">Practice games from Grade ${fb} while Grade ${g} is being built.</p>`:'<p class="lead">Pick a lab wing. Each one is a topic from class. Tap 🔊 to hear anything read aloud.</p>'}
- <div class="grid wings ${(fb||g)===1?'g1':''}">${W.map((w,i)=>{const r=(p.prog||{})[w.id];return `<button class="card wing" data-i="${i}"><div class="big-emoji">${w.icon}</div><div class="pname">${w.title}</div><div class="small">${w.subject}: ${w.topic}</div><div class="small">${r?'Best '+r.best+'/10'+(r.best>=8?' 🏅':''):'New!'}</div></button>`}).join('')}</div>
+ <div class="grid wings ${(fb||g)<=2?'g1':''}">${W.map((w,i)=>{const r=(p.prog||{})[w.id];return `<button class="card wing" data-i="${i}"><div class="big-emoji">${w.icon}</div><div class="pname">${w.title}</div><div class="small">${w.subject}: ${w.topic}</div><div class="small">${r?'Best '+r.best+'/10'+(r.best>=8?' 🏅':''):'New!'}</div></button>`}).join('')}</div>
  ${p.badges&&p.badges.length?`<p class="badges">🏅 ${p.badges.join(' · ')}</p>`:''}</div>`);
- on('#bk',home);on('#xs',()=>xsOpen(p));on('.wing',el=>quiz(p,W[+el.dataset.i],fb));if((fb||g)===1)Say.speak('Hello '+p.name+'! Pick a game.');}
+ on('#bk',home);on('#xs',()=>xsOpen(p));on('.wing',el=>quiz(p,W[+el.dataset.i],fb));if((fb||g)<=2)Say.speak('Hello '+p.name+'! Pick a game.');}
 function comingSoon(p,g){const f=fallbackGrade(g);h(`<div class="screen center lab"><div class="big-emoji">🧪🚧</div><h1>Grade ${g} games are coming soon!</h1><p class="lead">The lab is still mixing the Grade ${g} experiments. You can practise with Grade ${f} games for now.</p><button class="btn" id="fb">Play Grade ${f} games</button> <button class="btn" id="xs">🎨 Extracurricular</button> <button class="btn ghost" id="bk">🏠 Home</button></div>`);Say.speak(`Grade ${g} games are coming soon! You can practise with Grade ${f} games for now.`);on('#fb',()=>labHome(p,f));on('#xs',()=>xsOpen(p));on('#bk',home);}
 function shuffle(a){a=a.slice();for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a;}
 const ROUND=10;
 // ---- Grades: each big-kid profile has a grade (1-6). Built grades list their wings here. ----
-const BUILT={1:()=>window.G1_WINGS||[],3:()=>window.G3_WINGS||[]};
+const BUILT={1:()=>window.G1_WINGS||[],2:()=>window.G2_WINGS||[],3:()=>window.G3_WINGS||[]};
 const gradeOf=p=>p.grade||3;
 const wingsFor=g=>BUILT[g]?BUILT[g]():[];
 function fallbackGrade(g){const b=Object.keys(BUILT).map(Number);return b.filter(x=>x<g).pop()||b[0];}
 const ALLW=()=>[].concat(...Object.keys(BUILT).map(k=>wingsFor(+k)));
-function quiz(p,w,fb){const g1=w.grade===1;let qs=shuffle(w.gen?w.gen():w.questions).slice(0,ROUND),i=0,score=0,firstTry=true;const readQ=q=>(q.say||q.q)+' '+(g1?'Is it ':'')+q.c.join(', or ')+'?';
+function quiz(p,w,fb){const g1=w.grade&&w.grade<=2;const spk=t=>String(t).replace(/×/g,' times ').replace(/−/g,' minus ').replace(/÷/g,' divided by ').replace(/(\d+)c\b/g,'$1 cents');let qs=shuffle(w.gen?w.gen():w.questions).slice(0,ROUND),i=0,score=0,firstTry=true;const readQ=q=>spk((q.say||q.q)+' '+(g1?'Is it ':'')+(q.sc||q.c).join(', or ')+'?');
  const show=()=>{const q=qs[i];const order=shuffle(q.c.map((c,k)=>k));
  h(`<div class="screen lab${g1?' g1':''}"><header class="top"><button class="btn ghost" id="bk">⬅</button><h1>${w.icon} ${w.title}</h1><span class="stars">Question ${i+1} of ${qs.length} · ⭐ ${score}</span></header>
  ${i===0?`<p class="intro">${w.intro} <button class="btn sm" id="si">🔊</button></p>`:''}
