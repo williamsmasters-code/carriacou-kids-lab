@@ -91,3 +91,13 @@ input[type=range]{width:min(400px,70%)}
 .xs-lock .ava.mini.big{width:220px;height:210px}
 @media (max-width:760px){.st-wrap{grid-template-columns:1fr}.st-prev{position:static}.st-prev .ava{max-height:40vh}}
 .xsrow input[type=checkbox]{min-height:0;width:24px;height:24px;vertical-align:middle;margin:0 4px}.xsrow label{white-space:nowrap}
+/* Grade 1: bigger text, picture rows */
+.gtag{font-size:.55em;background:#ffd166;color:#3a2a7a;border-radius:12px;padding:2px 10px;vertical-align:middle}
+.g1 .q{font-size:clamp(28px,3.4vw,40px);line-height:1.35}.g1 .choice{font-size:clamp(26px,3vw,36px);min-height:90px}.g1 .intro{font-size:1.3rem}.g1 .fb{font-size:1.35rem}
+.g1num{font-size:2.6rem;color:#6a4cdf}
+.g1pics{display:flex;flex-wrap:wrap;gap:6px;justify-content:center;font-size:2.8rem;max-width:760px;margin:6px auto}
+.g1pics.big{font-size:3.4rem;gap:22px}.g1pics.line{font-size:2.6rem;flex-wrap:nowrap}
+.g1pics .gone{opacity:.35;position:relative}.g1pics .gone::after{content:'✖';position:absolute;left:0;right:0;text-align:center;color:#e63946}
+.g1groups{display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:10px}.g1groups b{font-size:2.2rem}
+.g1groups .g1pics{max-width:230px;margin:0}.g1groups .grp{border:3px dashed #6a4cdf;border-radius:16px;padding:6px}
+.wings.g1 .pname{font-size:1.35rem}
