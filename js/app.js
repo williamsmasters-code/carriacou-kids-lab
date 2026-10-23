@@ -7,7 +7,7 @@ function load(){try{return JSON.parse(localStorage.getItem(KEY))||{}}catch(e){re
 function save(){localStorage.setItem(KEY,JSON.stringify(S));}
 S.profiles=S.profiles||[]; S.limit=S.limit||90; save();
 const esc=t=>String(t).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
-function h(html){xsStop();app().innerHTML=html;window.scrollTo(0,0);}
+function h(html){xsStop();if(window.PARK)PARK.stop();app().innerHTML=html;window.scrollTo(0,0);}
 function on(sel,fn){document.querySelectorAll(sel).forEach(el=>el.addEventListener('click',e=>{Snd.tap();fn(el,e)}));}
 // ---- time tracking ----
 function used(p){return (p.time&&p.time[today()])||0;}
@@ -21,22 +21,37 @@ function setPin(){pinPad('Parent / teacher: choose a 4-digit PIN',p1=>pinPad('Ty
 function askPin(){pinPad('Parent / teacher PIN',(v,d,bad)=>v===S.pin?dash():bad());}
 // ---- Home ----
 function home(){stopClock();cur=null;if(!S.pin)return welcome();
- h(`<div class="screen"><header class="top"><h1>🏝️ Carriacou Kids Lab</h1><button class="btn ghost" id="par">🔒 Parent</button></header>
+ h(`<div class="screen"><header class="top"><h1>🏝️ Carriacou Kids Lab</h1><button class="btn ghost" id="par">🔒 Parent</button></header>${instBtn()}
  ${S.profiles.length?'<p class="lead">Who is learning today?</p>':'<p class="lead">No players yet. A parent or teacher can add one in the 🔒 Parent area.</p>'}
  <div class="grid profiles">${S.profiles.map((p,i)=>`<button class="card prof ${p.world}" data-i="${i}"><div class="ava-card">${miniAva(p)}</div><div class="pname">${esc(p.name)}</div><div class="small">🪙 ${p.coins||0}</div><div class="small">${p.world==='dino'?'Dino Truck Town':'Mad Scientist Music Lab · Grade '+gradeOf(p)}</div></button>`).join('')}</div></div>`);
- on('#par',askPin);on('.prof',el=>openProfile(S.profiles[+el.dataset.i]));}
+ on('#par',askPin);instWire();on('.prof',el=>openProfile(S.profiles[+el.dataset.i]));}
+
+// ---- Add to Home Screen (ckl-v19). Uses the browser's own install prompt when it offers one; otherwise shows menu steps. ----
+let instEvt=null;
+const isInstalled=()=>(window.matchMedia&&(matchMedia('(display-mode: standalone)').matches||matchMedia('(display-mode: fullscreen)').matches||matchMedia('(display-mode: minimal-ui)').matches))||navigator.standalone===true||localStorage.getItem('ckl_installed')==='1';
+window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();instEvt=e;localStorage.removeItem('ckl_installed');document.querySelectorAll('.inst').forEach(b=>b.dataset.ready='1');});
+window.addEventListener('appinstalled',()=>{instEvt=null;localStorage.setItem('ckl_installed','1');document.querySelectorAll('.instwrap').forEach(b=>b.remove());});
+function instBtn(){return isInstalled()?'':`<div class="instwrap"><button class="btn inst" id="inst" ${instEvt?'data-ready="1"':''}>📲 Add Kids Lab to the Home Screen</button><div class="insthelp" id="insthelp" hidden></div></div>`;}
+function instWire(){const b=document.getElementById('inst');if(!b)return;b.onclick=async()=>{
+ if(instEvt){const e=instEvt;instEvt=null;try{e.prompt();const r=await e.userChoice;if(r&&r.outcome==='accepted'){localStorage.setItem('ckl_installed','1');document.querySelectorAll('.instwrap').forEach(x=>x.remove());}}catch(_){}return;}
+ const hp=document.getElementById('insthelp');hp.hidden=!hp.hidden;hp.innerHTML=`<b>Add it from the browser menu:</b><ul>
+ <li><b>Chrome (Android):</b> tap the ⋮ menu at the top right, then <b>Add to Home screen</b> or <b>Install app</b>.</li>
+ <li><b>Samsung Internet:</b> tap the ☰ menu at the bottom, then <b>Add page to</b> → <b>Home screen</b>.</li>
+ <li><b>iPad or iPhone (Safari):</b> tap the Share button (square with an arrow), then <b>Add to Home Screen</b>.</li></ul>
+ <p class="small">After that, open Kids Lab from its icon. It works with no internet.</p>`;};}
 function welcome(){h(`<div class="screen center"><div class="big-emoji">🧪🦕</div><h1>Welcome to Carriacou Kids Lab</h1><p>Everything stays on this tablet. No accounts, no ads, no internet needed.</p><button class="btn" id="go">Parent / teacher: set up a PIN</button></div>`);on('#go',setPin);}
 function openProfile(p){cur=p;if(used(p)>=S.limit)return rest(p);startClock(p);p.world==='dino'?dinoHome(p):labHome(p);}
 // ---- Dashboard ----
 function dash(){stopClock();const av={lab:['🧑‍🔬','🎧','🎹','🥁','🎻','💃'],dino:['🦕','🦖','🚚','🚒','🚜','🚌']};
  h(`<div class="screen"><header class="top"><h1>🔒 Parent / Teacher</h1><button class="btn ghost" id="out">Done</button></header>
+ ${isInstalled()?'<section class="panel small">📲 Installed on this device as an app.</section>':`<section class="panel"><h2>Install on this tablet</h2><p class="small">Put Kids Lab on the home screen so it opens full screen and works offline.</p>${instBtn()}</section>`}
  <section class="panel"><h2>Daily time limit per player</h2><input type="range" id="lim" min="60" max="120" step="5" value="${S.limit}"> <b id="limv">${S.limit} min</b></section>
  <section class="panel"><h2>Add a player</h2><input id="nm" maxlength="16" placeholder="Name or nickname"> <select id="wd"><option value="lab">Mad Scientist Music Lab (Grades 1 to 6)</option><option value="dino">Dino Truck Town (toddler)</option></select> <select id="gr" aria-label="grade">${[1,2,3,4,5,6].map(n=>`<option value="${n}" ${n===3?'selected':''}>Grade ${n}${BUILT[n]?'':' (coming soon)'}</option>`).join('')}</select> <button class="btn" id="add">Add</button></section>
  <section class="panel"><h2>Players and progress</h2>${S.profiles.length>1?'<button class="btn sm" id="cls">🏫 Class overview</button>':''}${S.profiles.length?S.profiles.map((p,i)=>`<div class="prow"><div><span class="big">${p.avatar}</span> <b>${esc(p.name)}</b> <span class="small">(${p.world==='dino'?'Dino Truck Town':'Music Lab'})${p.world==='dino'?'':` <select data-gr="${i}" aria-label="grade">${[1,2,3,4,5,6].map(n=>`<option value="${n}" ${n===gradeOf(p)?'selected':''}>Grade ${n}${BUILT[n]?'':' (coming soon)'}</option>`).join('')}</select>`} · today ${Math.round(used(p))} of ${S.limit} min · ⭐ ${p.stars||0}</span>
  <div class="small">${progressText(p)}</div>${dashXS(p,i)}</div><div><button class="btn sm" data-an="${i}">📊 Analytics</button> <button class="btn sm" data-av="${i}">Avatar</button> <button class="btn sm" data-rt="${i}">Reset today's time</button> <button class="btn sm warn" data-del="${i}">Remove</button></div></div>`).join(''):'<p class="small">No players yet.</p>'}</section>
  <section class="panel"><h2>Security</h2><button class="btn sm" id="rp">Reset PIN</button> <span class="small">All data is stored only on this device (localStorage).</span></section></div>`);
  $('#lim').oninput=e=>{S.limit=+e.target.value;$('#limv').textContent=S.limit+' min';save();};
- on('#out',home);$('#wd').onchange=e=>{$('#gr').style.display=e.target.value==='dino'?'none':'';};document.querySelectorAll('[data-gr]').forEach(el=>el.addEventListener('change',()=>{S.profiles[+el.dataset.gr].grade=+el.value;save();dash();}));on('#rp',setPin);dashXSWire();on('[data-an]',el=>analytics(+el.dataset.an));if($('#cls'))on('#cls',classView);
+ instWire();on('#out',home);$('#wd').onchange=e=>{$('#gr').style.display=e.target.value==='dino'?'none':'';};document.querySelectorAll('[data-gr]').forEach(el=>el.addEventListener('change',()=>{S.profiles[+el.dataset.gr].grade=+el.value;save();dash();}));on('#rp',setPin);dashXSWire();on('[data-an]',el=>analytics(+el.dataset.an));if($('#cls'))on('#cls',classView);
  on('#add',()=>{const n=$('#nm').value.trim();if(!n)return;const w=$('#wd').value;const np={name:n,world:w,grade:w==='dino'?undefined:+$('#gr').value,avatar:av[w][0],stars:0,prog:{},badges:[],time:{}};xsInit(np);S.profiles.push(np);save();dash();});
  on('[data-del]',el=>{const p=S.profiles[+el.dataset.del];if(confirm('Remove '+p.name+' and all progress?')){S.profiles.splice(+el.dataset.del,1);save();dash();}});
  on('[data-rt]',el=>{const p=S.profiles[+el.dataset.rt];if(p.time)p.time[today()]=0;save();dash();});
@@ -44,11 +59,11 @@ function dash(){stopClock();const av={lab:['🧑‍🔬','🎧','🎹','🥁','�
 function progressText(p){const pr=p.prog||{};const list=p.world==='dino'?TODDLER:ALLW().filter(w=>(w.grade||3)===gradeOf(p)||(p.prog||{})[w.id]);return list.map(w=>{const r=pr[w.id];return `${w.icon} ${w.title}: ${r?(p.world==='dino'?(r.plays||0)+(r.plays===1?' round':' rounds')+' of 10'+(r.views?`, ${r.views} cards`:'')+(r.seen?`, letters heard ${r.seen.length}/26`:'')+(r.found?`, letters found ${r.found.length}/26 (${r.found.slice().sort().join(' ')})`:''):`last round ${r.rounds&&r.rounds.length?r.rounds[r.rounds.length-1].s+'/'+r.rounds[r.rounds.length-1].of:'-'}, best ${r.best}/${r.bestOf||10}, ${r.plays} round${r.plays===1?'':'s'}`):'not started'}${p.world!=='dino'&&bigGrade(w)?`, ${svCount(p,w)}/${svSize(p,w)} solved`:''}`}).join(' · ')+(p.badges&&p.badges.length?' · Badges: '+p.badges.join(', '):'')+(p.medals&&p.medals.length?' · Medals (all solved): '+p.medals.map(id=>(ALLW().find(w=>w.id===id)||{title:id}).title).join(', '):'');}
 // ---- Grade 3 lab ----
 function labHome(p,fb){const g=gradeOf(p),own=wingsFor(g),W=fb?wingsFor(fb):own;if(!own.length&&!fb)return comingSoon(p,g);h(`<div class="screen lab"><header class="top"><button class="btn ghost" id="bk">🏠</button><h1>${miniAva(p,'hdr')} ${esc(p.name)}'s Mad Scientist Music Lab <span class="gtag">Grade ${g}</span></h1><span class="stars">⭐ ${p.stars||0} ${coinBadge(p)}</span></header>
- <button class="btn xsbtn" id="xs">🎨 Extracurricular Activities: Style Studio and Prize Store</button>
+ <div class="xsrow2"><button class="btn xsbtn" id="xs">🎨 Extracurricular Activities: Style Studio and Prize Store</button><button class="btn xsbtn pkbtn" id="pk">🧱 Block Park</button></div>
  ${fb?`<p class="lead">Practice games from Grade ${fb} while Grade ${g} games are not available.</p>`:'<p class="lead">Pick a lab wing. Each one is a topic from class. Tap 🔊 to hear anything read aloud.</p>'}
  <div class="grid wings ${(fb||g)<=2?'g1':''}">${W.map((w,i)=>{const r=(p.prog||{})[w.id];return `<button class="card wing" data-i="${i}"><div class="big-emoji">${w.icon}</div><div class="pname">${w.title}</div><div class="small">${w.subject}: ${w.topic}</div><div class="small">${r?'Best '+r.best+'/'+(r.bestOf||10)+(bigGrade(w)?'':(r.best>=Math.ceil(0.8*(r.bestOf||10))?' 🏅':'')):'New!'}${bigGrade(w)?` · 📚 ${svCount(p,w)}/${svSize(p,w)} solved${(p.medals||[]).includes(w.id)?' 🏅':''}`:''}</div></button>`}).join('')}</div>
  ${p.badges&&p.badges.length?`<p class="badges">🏅 ${p.badges.join(' · ')}</p>`:''}</div>`);
- on('#bk',home);on('#xs',()=>xsOpen(p));on('.wing',el=>quiz(p,W[+el.dataset.i],fb));if((fb||g)<=2)Say.speak('Hello '+p.name+'! Pick a game.');}
+ on('#bk',home);on('#xs',()=>xsOpen(p));on('#pk',()=>xsOpen(p,'park'));on('.wing',el=>quiz(p,W[+el.dataset.i],fb));if((fb||g)<=2)Say.speak('Hello '+p.name+'! Pick a game.');}
 function comingSoon(p,g){const f=fallbackGrade(g);h(`<div class="screen center lab"><div class="big-emoji">🧪🚧</div><h1>Grade ${g} games are not ready on this device</h1><p class="lead">The Grade ${g} experiments did not load. You can practise with Grade ${f} games for now.</p><button class="btn" id="fb">Play Grade ${f} games</button> <button class="btn" id="xs">🎨 Extracurricular</button> <button class="btn ghost" id="bk">🏠 Home</button></div>`);Say.speak(`Grade ${g} games are not ready on this device. You can practise with Grade ${f} games for now.`);on('#fb',()=>labHome(p,f));on('#xs',()=>xsOpen(p));on('#bk',home);}
 function shuffle(a){a=a.slice();for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a;}
 const ROUND=10; // Grades 1-2 (and Dino) rounds
@@ -140,8 +155,8 @@ function shapeSVG(t){const st='fill="#ffd166" stroke="#333" stroke-width="3"';co
 const CHEER=['Yay!','Great job!','You did it!','Wonderful!','Roar-some!','Beep beep, hooray!'];
 const cheer=()=>CHEER[Math.floor(Math.random()*CHEER.length)];
 function dinoHome(p){h(`<div class="screen dino"><header class="top"><button class="btn ghost" id="bk">🏠</button><h1>${miniAva(p,'hdr')} Dino Truck Town</h1><span class="stars">⭐ ${p.stars||0} ${coinBadge(p)}</span></header>
- <div class="grid tod">${TODDLER.map((a,i)=>`<button class="card huge" data-i="${i}" aria-label="${a.title}"><div class="mega">${a.icon}</div></button>`).join('')}<button class="card huge xscard" id="xs" aria-label="dress up"><div class="ava-card">${miniAva(p)}</div><div class="mega sm">🎨</div></button></div></div>`);
- Say.speak('Hello '+p.name+'! Tap a picture to play.');on('#bk',home);on('#xs',()=>xsOpen(p));on('.huge:not(#xs)',el=>{const a=TODDLER[+el.dataset.i];RND={id:a.id,done:0};({count:countGame,colour:colourGame,shape:shapeGame,abc:abcExplore,findabc:abcFind})[a.id](p,0);});}
+ <div class="grid tod">${TODDLER.map((a,i)=>`<button class="card huge" data-i="${i}" aria-label="${a.title}"><div class="mega">${a.icon}</div></button>`).join('')}<button class="card huge xscard" id="xs" aria-label="dress up"><div class="ava-card">${miniAva(p)}</div><div class="mega sm">🎨</div></button><button class="card huge xscard" id="pk" aria-label="block park"><div class="mega">🧱</div><div class="mega sm">🏃</div></button></div></div>`);
+ Say.speak('Hello '+p.name+'! Tap a picture to play.');on('#bk',home);on('#xs',()=>xsOpen(p));on('#pk',()=>xsOpen(p,'park'));on('.huge[data-i]',el=>{const a=TODDLER[+el.dataset.i];RND={id:a.id,done:0};({count:countGame,colour:colourGame,shape:shapeGame,abc:abcExplore,findabc:abcFind})[a.id](p,0);});}
 let RND={id:null,done:0};
 // Progress strip of 10 dino footprints; filled = done this round.
 function strip(){return `<div class="strip" aria-hidden="true">${Array.from({length:10},(_,i)=>`<span class="${i<RND.done?'on':''}">🐾</span>`).join('')}</div>`;}
@@ -217,16 +232,16 @@ function activeEvents(){return (window.EVENTS||[]).filter(e=>eventActive(e,new D
 let xsTimer=null;function xsStop(){if(xsTimer)clearInterval(xsTimer);xsTimer=null;}
 function milestoneInfo(p){const x=p.xs,r=p.rt[today()]||0,b=x.badge?(p.bt[today()]||0):0,earned=Math.floor(r/x.rounds)+b,used=p.xsUsed[today()]||0;return {earned,used,left:earned>used?0:x.rounds-(r%x.rounds)};}
 function xsUnlock(p){p.xsUntil=Date.now()+p.xs.mins*60000;save();}
-function xsOpen(p){xsInit(p);const tod=p.world==='dino';
- if((p.xsUntil||0)>Date.now())return studio(p);
- if(p.xs.mile){const m=milestoneInfo(p);if(m.earned>m.used){p.xsUsed[today()]=m.used+1;xsUnlock(p);Snd.good();Say.speak(tod?`Hooray! Dress up time! ${p.xs.mins} minutes.`:`You unlocked Extracurricular time for ${p.xs.mins} minutes. Have fun!`);return studio(p);}}
+function xsOpen(p,dest){xsInit(p);const tod=p.world==='dino',go=()=>dest==='park'?park(p):studio(p);
+ if((p.xsUntil||0)>Date.now())return go();
+ if(p.xs.mile){const m=milestoneInfo(p);if(m.earned>m.used){p.xsUsed[today()]=m.used+1;xsUnlock(p);Snd.good();Say.speak(tod?`Hooray! Dress up time! ${p.xs.mins} minutes.`:`You unlocked Extracurricular time for ${p.xs.mins} minutes. Have fun!`);return go();}}
  const m=milestoneInfo(p),back=()=>tod?dinoHome(p):labHome(p);
  h(`<div class="screen center ${tod?'dino':'lab'}"><div class="xs-lock">${miniAva(p,'big')}</div><h1>${tod?'🎨 🔒':'🎨 Extracurricular Activities'}</h1>
  ${p.xs.mile?`<p class="lead">${tod?`${'🐾'.repeat(Math.max(1,m.left))}`:`Finish ${m.left} more round${m.left===1?'':'s'} today${p.xs.badge?' or earn a new badge':''} to unlock ${p.xs.mins} minutes of dress-up time.`}</p>`:''}
  ${!p.xs.mile&&!p.xs.parent?'<p class="lead">Ask a grown-up to turn this on in the Parent area.</p>':''}
  <div>${p.xs.parent?'<button class="btn" id="pu">🔒 Grown-up unlock</button> ':''}<button class="btn ghost huge-btn" id="bk" aria-label="back">⬅</button></div></div>`);
  Say.speak(p.xs.mile?(tod?`Play ${m.left} more ${m.left===1?'game':'games'} to unlock dress up!`:`Finish ${m.left} more round${m.left===1?'':'s'} today to unlock dress-up time.`):'Ask a grown-up to unlock dress up time.');
- on('#bk',back);if(p.xs.parent)on('#pu',()=>pinPad('Grown-up: type the PIN to unlock '+p.xs.mins+' minutes',(v,d,bad)=>{if(v===S.pin){xsUnlock(p);startClock(p);studio(p);}else bad();}));}
+ on('#bk',back);if(p.xs.parent)on('#pu',()=>pinPad('Grown-up: type the PIN to unlock '+p.xs.mins+' minutes',(v,d,bad)=>{if(v===S.pin){xsUnlock(p);startClock(p);go();}else bad();}));}
 let ST={slot:'head',mode:'mine',try:null};
 function studio(p){xsInit(p);if((p.xsUntil||0)<=Date.now())return timeUp(p);const tod=p.world==='dino',evs=activeEvents();
  const look=Object.assign({},p.look);if(ST.try)look[AVA.ITEMS[ST.try].slot]=ST.try;
@@ -237,7 +252,7 @@ function studio(p){xsInit(p);if((p.xsUntil||0)<=Date.now())return timeUp(p);cons
   if(ST.mode==='mine')list=list.filter(it=>owns(p,it.id));else list=list.filter(it=>!it.ev||evs.some(e=>e.id===it.ev)).sort((a,b)=>(b.ev?1:0)-(a.ev?1:0)||a.price-b.price);
   tiles=list.map(it=>{const own=owns(p,it.id),eq=p.look[it.slot]===it.id;return `<button class="tile ${eq?'eq':''} ${ST.try===it.id?'sel':''} ${it.ev?'ev':''}" data-id="${it.id}" aria-label="${esc(it.name)}">${AVA.svg(Object.assign({},p.look,{[it.slot]:it.id}),{view:it.slot})}<span class="tn">${tod?'':esc(it.name)}</span><span class="tp">${eq?'✅':own?'✔️':'🪙 '+it.price}</span>${it.ev?'<span class="evr">'+(it.ev==='halloween'?'🎃':it.ev==='christmas'?'🎄':'⭐')+'</span>':''}</button>`;}).join('')||`<p class="lead">${ST.mode==='mine'?(tod?'🛍️ ➡️':'Nothing here yet. Visit the Prize Store!'):'All gone!'}</p>`;}
  const it=ST.try&&AVA.ITEMS[ST.try],can=it&&(p.coins||0)>=it.price;
- h(`<div class="screen studio ${tod?'dino tod':'lab'}"><header class="top"><button class="btn ghost" id="bk" aria-label="back">⬅</button><h1>🎨 ${tod?'':'Extracurricular: '}${esc(p.name)}'s Style Studio</h1><span class="stars">${coinBadge(p)} <span class="timer" id="tm">⏳</span></span></header>
+ h(`<div class="screen studio ${tod?'dino tod':'lab'}"><header class="top"><button class="btn ghost" id="bk" aria-label="back">⬅</button><h1>🎨 ${tod?'':'Extracurricular: '}${esc(p.name)}'s Style Studio</h1><button class="btn pkbtn" id="pk" aria-label="block park">🧱 ${tod?'':'Block Park'}</button><span class="stars">${coinBadge(p)} <span class="timer" id="tm">⏳</span></span></header>
  <div class="st-wrap"><div class="st-prev">${AVA.svg(look,{label:'my avatar'})}</div>
  <div class="st-side"><div class="modes"><button class="btn ${ST.mode==='mine'?'':'ghost'}" id="mm" aria-label="my things">👕 ${tod?'':'My things'}</button><button class="btn ${ST.mode==='store'?'':'ghost'}" id="ms" aria-label="prize store">🛍️ ${tod?'':'Prize Store'}</button></div>
  ${ST.mode==='store'&&ST.slot!=='body'?evs.map(e=>`<div class="evbanner" style="background:${e.colour}">${e.banner}</div>`).join(''):''}
@@ -246,7 +261,7 @@ function studio(p){xsInit(p);if((p.xsUntil||0)<=Date.now())return timeUp(p);cons
  <p class="small">Coins are earned by playing. No real money is used.</p></div>`);
  const tick=()=>{const s=Math.max(0,Math.round(((p.xsUntil||0)-Date.now())/1000));const el=$('#tm');if(el)el.textContent=`⏳ ${Math.floor(s/60)}:${String(s%60).padStart(2,'0')}`;if(s<=0){xsStop();timeUp(p);}};
  tick();xsTimer=setInterval(tick,1000);
- on('#bk',()=>{ST.try=null;tod?dinoHome(p):labHome(p);});
+ on('#bk',()=>{ST.try=null;tod?dinoHome(p):labHome(p);});on('#pk',()=>{ST.try=null;park(p);});
  on('#mm',()=>{ST.mode='mine';ST.try=null;Say.speak('My things');studio(p);});on('#ms',()=>{ST.mode='store';ST.try=null;Say.speak(evs.length?'Prize store. '+evs.map(e=>e.name).join(' and ')+' things are here!':'Prize store');studio(p);});
  on('.tab',el=>{ST.slot=el.dataset.s;ST.try=null;const t=AVA.SLOTS.find(x=>x[0]===ST.slot);Say.speak(t?t[1]:'Skin and body');studio(p);});
  on('[data-skin]',el=>{p.look.skin=el.dataset.skin;save();Say.speak(el.getAttribute('aria-label'));studio(p);});
@@ -256,11 +271,29 @@ function studio(p){xsInit(p);if((p.xsUntil||0)<=Date.now())return timeUp(p);cons
   ST.try=i.id;Say.speak(`${i.name}. ${i.price} coins.`+((p.coins||0)>=i.price?(tod?'':' Tap the big green button to get it.'):(tod?'':' Keep playing to earn more coins.')));studio(p);});
  on('#nt',()=>{ST.try=null;studio(p);});
  on('#buy',()=>{const i=AVA.ITEMS[ST.try];if(!i||(p.coins||0)<i.price)return;p.coins-=i.price;p.owned.push(i.id);p.look[i.slot]=i.id;ST.try=null;save();Snd.good();Say.speak(`You got the ${i.name}!`);studio(p);});}
+
+// ---- Block Park (ckl-v19): obstacle course with the child's own avatar. Same unlock and countdown as the Style Studio. ----
+function park(p){xsInit(p);if((p.xsUntil||0)<=Date.now())return timeUp(p);if(used(p)>=S.limit)return rest(p);const tod=p.world==='dino';
+ p.park=Object.assign({best:0,fin:0,runs:0,cd:{},fd:''},p.park||{});p.park.runs++;save();
+ h(`<div class="screen park" id="pkHost"></div>`);const host=$('#pkHost');let G=null;
+ const tick=()=>{const s=Math.max(0,Math.round(((p.xsUntil||0)-Date.now())/1000));if(G)G.setX(`⏳ ${Math.floor(s/60)}:${String(s%60).padStart(2,'0')}`);if(s<=0){xsStop();timeUp(p);}};
+ PARK.start(host,{look:p.look,best:p.park.best,coins:()=>p.coins||0,say:t=>Say.speak(t),
+  sfx:k=>{if(k==='good')Snd.good();else if(k==='soft')Snd.soft();else if(k==='jump')Snd.tone(520,.08,'triangle',0,.06);else if(k==='tap')Snd.tap();else if(k==='bell')[784,659,523].forEach((f,i)=>Snd.tone(f,.7,'sine',i*.3,.18));},
+  chest:id=>{const d=today();p.park.cd=p.park.cd||{};if(p.park.cd[id]===d){Say.speak('This chest is empty today. It fills up again tomorrow.');return;}p.park.cd[id]=d;p.coins=(p.coins||0)+PARK_CHEST;save();if(G)G.setCoins(p.coins);Snd.good();Say.speak(`You found ${PARK_CHEST} coins!`);},
+  finish:(ms,falls)=>{const d=today(),first=p.park.fd!==d,nb=ms>0&&(!p.park.best||ms<p.park.best);p.park.fin++;if(nb)p.park.best=ms;if(first){p.park.fd=d;p.coins=(p.coins||0)+PARK_FINISH;}save();if(G){G.setCoins(p.coins);if(nb)G.setBest(ms);}
+   Snd.good();const t=PARK.fmt(ms),mm=Math.floor(ms/60000),ss=Math.round(ms/1000)%60;
+   Say.speak(`You finished! Your time was ${mm?mm+' minute'+(mm===1?'':'s')+' and ':''}${ss} seconds.${nb?' That is your best time!':''}`);
+   const o=document.createElement('div');o.className='pk-win';o.innerHTML=`<div class="pk-card"><div class="big-emoji">🏁🎉</div><h2>${tod?'':'You finished the course!'}</h2><p class="lead">⏱ ${t}${nb?' · 🏆 New best!':' · 🏆 Best '+PARK.fmt(p.park.best)}</p>${first?`<p>🪙 +${PARK_FINISH} coins</p>`:''}<button class="btn" id="pkAgain">🔁 ${tod?'':'Play again'}</button> <button class="btn ghost" id="pkOut">⬅ ${tod?'':'Back'}</button></div>`;host.appendChild(o);
+   o.querySelector('#pkAgain').onclick=()=>{o.remove();if(G)G.restart();};o.querySelector('#pkOut').onclick=()=>studio(p);},
+  exit:()=>studio(p),ready:g=>{G=g;tick();}});
+ xsTimer=setInterval(tick,1000);
+ Say.speak(tod?'Block Park! Push the circle to walk.':'Welcome to Block Park! Use the joystick to walk, Jump to hop, and the hand to use things. Reach the flag!');}
+const PARK_CHEST=2,PARK_FINISH=3;
 function timeUp(p){xsStop();ST.try=null;const tod=p.world==='dino';
  h(`<div class="screen center ${tod?'dino':'lab'}"><div class="xs-lock">${miniAva(p,'big')}</div><h1>${tod?'⏳ 👋':'Dress-up time is finished for now'}</h1><p class="lead">${tod?'':'Your look is saved. Great styling! Let’s go back and play.'}</p><button class="btn huge-btn" id="bk" aria-label="back to games">${tod?'🦕':'⬅ Back to the lab'}</button></div>`);
  Say.speak('Dress up time is finished for now. Your look is saved. Great styling!');on('#bk',()=>tod?dinoHome(p):labHome(p));}
 function dashXS(p,i){xsInit(p);const x=p.xs,owned=(p.owned||[]).length;
- return `<div class="xsrow small">🎨 Extracurricular: <b>🪙 ${p.coins||0}</b> coins · ${owned} item${owned===1?'':'s'} bought · <button class="btn sm" data-cp="${i}">+10 🪙</button> <button class="btn sm" data-cm="${i}">−10 🪙</button>
+ return `<div class="xsrow small">🎨 Extracurricular: <b>🪙 ${p.coins||0}</b> coins · ${owned} item${owned===1?'':'s'} bought · 🧱 Block Park best ${p.park&&p.park.best?PARK.fmt(p.park.best):'none yet'} · <button class="btn sm" data-cp="${i}">+10 🪙</button> <button class="btn sm" data-cm="${i}">−10 🪙</button>
  <br>Access: <label><input type="checkbox" data-xp="${i}" ${x.parent?'checked':''}> Parent unlock (PIN)</label> · <label><input type="checkbox" data-xm="${i}" ${x.mile?'checked':''}> Milestone unlock: every</label> <select data-xr="${i}">${[1,2,3,4,5].map(n=>`<option ${n===x.rounds?'selected':''}>${n}</option>`).join('')}</select> rounds today <label><input type="checkbox" data-xb="${i}" ${x.badge?'checked':''}> or a new badge</label> · unlocks <select data-xt="${i}">${[5,10,15,20,30].map(n=>`<option ${n===x.mins?'selected':''}>${n}</option>`).join('')}</select> min
  ${(p.xsUntil||0)>Date.now()?` · <b>Open now</b> <button class="btn sm" data-xl="${i}">Lock now</button>`:''}</div>`;}
 function dashXSWire(){const P=el=>S.profiles[+Object.values(el.dataset)[0]];
@@ -316,6 +349,6 @@ function classView(){stopClock();const rows=S.profiles.map((p,i)=>{if(p.world===
  h(`<div class="screen analytics"><header class="top"><button class="btn ghost" id="bk">⬅ Back</button><h1>🏫 Class overview</h1><span class="small">last 30 days</span></header><section class="panel"><table class="antab"><tr><th>Player</th><th>Level</th><th>Activity</th><th>Right first time</th><th>Solved</th><th>Focus on next</th><th></th></tr>${rows||'<tr><td colspan="7">No players yet.</td></tr>'}</table></section></div>`);
  on('#bk',dash);on('[data-an]',el=>analytics(+el.dataset.an));}
 
-window.CKL={S,home,xsOpen,studio,timeUp,save,askPin,POOLS,poolFor,solve,svCount,svHas,anPrune,anSum}; // internals exposed for on-device tests only
+window.CKL={S,home,park,isInstalled,xsOpen,studio,timeUp,save,askPin,POOLS,poolFor,solve,svCount,svHas,anPrune,anSum}; // internals exposed for on-device tests only
 home();
 })();
