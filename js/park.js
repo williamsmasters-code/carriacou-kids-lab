@@ -71,80 +71,145 @@ function figure(C){const root=new THREE.Group(),body=new THREE.Group();root.add(
    case'bow':add(.3,2.02,.12,m1,0,.14);break;
    default:add(.56,2.03,.56,m1,0,.16);}}
  return{root,body,legL,legR,armL,armR};}
-// ---------- the course ----------
-function build(scene,opt){
+// ---------- the courses (ckl-v21: Sunny Island, Reef and Jungle, Cloud Fort) ----------
+T.mush=(g,r,n)=>{noise('#d93a3a',.15)(g,r,n);g.fillStyle='#fff';for(const[x,y]of[[2,2],[9,3],[5,8],[12,10],[2,12],[10,13]])g.fillRect(x,y,3,2);};
+T.crumb=(g,r,n)=>{noise('#d8c07a',.25)(g,r,n);g.fillStyle='#8a7340';for(let i=0;i<5;i++){let x=Math.floor(r()*n),y=Math.floor(r()*n);for(let k=0;k<5;k++){g.fillRect(x,y,1,1);x+=r()<.5?1:-1;y+=1;}}};
+T.belt=(g,r,n)=>{noise('#555b63',.15)(g,r,n);g.fillStyle='#ffd23f';for(let y=0;y<n;y+=8)for(let k=0;k<4;k++){g.fillRect(4+k,y+k,1,1);g.fillRect(11-k,y+k,1,1);}};
+T.blueB=noise('#3b8fe8',.15);T.pinkB=noise('#ff6bb0',.15);T.cloud=noise('#fbfbff',.06);T.key=noise('#f2c230',.2);
+function build(scene,opt,cid){
  const mats={grass:[M(canvasTex(T.grassSide,16,2)),M(canvasTex(T.grassSide,16,2)),M(canvasTex(T.grassTop,16,1)),M(canvasTex(T.dirt,16,3)),M(canvasTex(T.grassSide,16,2)),M(canvasTex(T.grassSide,16,2))]};
- for(const k of['dirt','stone','sand','gold','plank','log','leaves','cobble','brick','iron','wool','woolG','red','green','chest','checker','sign'])mats[k]=M(canvasTex(T[k],16,k.length*7));
- const vox={},cols=[];const V=(x,y,z,t,half)=>{const k=t+(half?'|h':'');(vox[k]=vox[k]||[]).push([x+.5,half?y+.25:y+.5,z+.5]);};
+ for(const k of['dirt','stone','sand','gold','plank','log','leaves','cobble','brick','iron','wool','woolG','red','green','chest','checker','sign','mush','crumb','blueB','pinkB','cloud','key'])mats[k]=M(canvasTex(T[k],16,k.length*7));
+ const belts=[];const beltMat=()=>{const t=canvasTex(T.belt,16,9);t.wrapS=t.wrapT=THREE.RepeatWrapping;const m=M(t);belts.push(t);return m;};
+ mats.timedA=new THREE.MeshLambertMaterial({map:mats.blueB.map,transparent:true});mats.timedB=new THREE.MeshLambertMaterial({map:mats.pinkB.map,transparent:true});
+ const vox={},cols=[],dyn=[],zones=[],gates=[],movers=[],its=[],cps=[],anim=[];const W={mats,cols,dyn,zones,gates,movers,its,cps,keys:0};
+ const V=(x,y,z,t,half)=>{const k=t+(half?'|h':'');(vox[k]=vox[k]||[]).push([x+.5,half?y+.25:y+.5,z+.5]);};
  const C=(x0,y0,z0,x1,y1,z1,tag)=>{const b={min:[x0,y0,z0],max:[x1,y1,z1],tag:tag||''};cols.push(b);return b;};
- // P: blocks x0..x1, z0..z1 (inclusive), top surface at height top, depth layers below
- const P=(x0,x1,z0,z1,top,t,depth=1,under='dirt',tag)=>{for(let x=x0;x<=x1;x++)for(let z=z0;z<=z1;z++)for(let d=0;d<depth;d++)V(x,top-1-d,z,d===0?t:under);C(x0,top-depth,z0,x1+1,top,z1+1,tag);};
+ const P=(x0,x1,z0,z1,top,t,depth=1,under='dirt',tag)=>{for(let x=x0;x<=x1;x++)for(let z=z0;z<=z1;z++)for(let d=0;d<depth;d++)V(x,top-1-d,z,d===0?t:under);return C(x0,top-depth,z0,x1+1,top,z1+1,tag);};
  const tree=(x,z,y=0)=>{for(let i=0;i<3;i++)V(x,y+i,z,'log');C(x,y,z,x+1,y+3,z+1);for(let dx=-1;dx<=1;dx++)for(let dz=-1;dz<=1;dz++)for(let dy=3;dy<5;dy++)if(!(dy===4&&Math.abs(dx)+Math.abs(dz)===2))V(x+dx,y+dy,z+dz,'leaves');C(x-1,y+3,z-1,x+2,y+5,z+2);};
- // start island (in the sea)
- P(-5,5,-6,5,0,'grass',3);tree(-4,-5);tree(4,-5);tree(-4,4);
- // 1 steps up
- P(-1,1,6,6,1,'stone',2);P(-1,1,7,7,2,'stone',3);P(-1,1,8,8,3,'stone',4);P(-1,1,9,9,4,'cobble',2);
- P(-2,2,10,12,4,'plank');
- // 2 gaps to jump
- P(-1,1,14,16,4,'stone');P(1,3,19,21,4,'stone');P(-1,1,24,26,5,'brick');
- P(-2,2,29,33,5,'grass',2);
- // 3 moving platform crosses z 34..45
- P(-2,2,46,51,5,'plank');
- // 4 balance beam
- P(0,0,52,63,5,'log');
- P(-2,2,64,68,5,'grass',2);
- // 5 drawbridge z 69..76 (collider added when lowered)
- P(-2,2,77,80,5,'stone');
- // 6 slide down to the beach: half-block steps, slippery
- for(let i=0;i<10;i++){const top=5-.5*(i+1),z=81+i;for(let x=-1;x<=1;x++){for(let y=-1;y<(top%1?Math.floor(top):top-1);y++)V(x,y,z,'stone');if(top%1)V(x,Math.floor(top),z,'gold',1);else V(x,top-1,z,'gold');}C(-1,-1,z,2,top,z+1,'slide');V(-2,Math.floor(top),z,'red');V(2,Math.floor(top),z,'red');C(-2,-1,z,-1,Math.floor(top)+1,z+1);C(2,-1,z,3,Math.floor(top)+1,z+1);}
- // 7 beach and stepping stones
- P(-6,6,91,95,0,'sand',2,'sand');P(-3,-2,97,98,0,'stone',2);P(0,1,100,101,0,'stone',2);P(-2,-1,103,104,0,'stone',2);P(1,2,106,107,0,'stone',2);
- P(-6,6,109,121,0,'grass',2);tree(-5,120);tree(5,110);
- // 8 lift up to the flag tower
- P(-2,2,116,120,6,'cobble',6,'cobble');
- // instanced voxels
- const g1=new THREE.BoxGeometry(1,1,1),gh=new THREE.BoxGeometry(1,.5,1),mtx=new THREE.Matrix4();
- for(const k in vox){const[t,h]=k.split('|');const L=vox[k];const im=new THREE.InstancedMesh(h?gh:g1,mats[t],L.length);L.forEach((p,i)=>{mtx.makeTranslation(p[0],p[1],p[2]);im.setMatrixAt(i,mtx);});scene.add(im);}
- const cube=(t,x,y,z,parent,s)=>{const m=new THREE.Mesh(g1,mats[t]);m.position.set(x,y,z);if(s)m.scale.set(s[0],s[1],s[2]);(parent||scene).add(m);return m;};
- // movers
- const movers=[];
- const mover=(x0,w,d,top,fn,t)=>{const g=new THREE.Group();for(let x=0;x<w;x++)for(let z=0;z<d;z++)cube(t,x+.5,-.5,z+.5,g);scene.add(g);const b=C(0,0,0,0,0,0,'mover');const m={g,b,w,d,fn,dx:0,dy:0,dz:0};m.set=(time)=>{const p=fn(time);const ox=b.min[0],oy=b.max[1],oz=b.min[2];b.min=[p[0],p[1]-1,p[2]];b.max=[p[0]+w,p[1],p[2]+d];g.position.set(p[0],p[1],p[2]);m.dx=p[0]-ox;m.dy=p[1]-oy;m.dz=p[2]-oz;};m.set(0);m.dx=m.dy=m.dz=0;movers.push(m);return m;};
+ const palm=(x,z,y=0)=>{for(let i=0;i<4;i++)V(x+(i>2?1:0),y+i,z,'log');C(x,y,z,x+1,y+3,z+1);const tx=x+1,ty=y+4;for(const[dx,dz]of[[0,0],[1,0],[-1,0],[0,1],[0,-1],[2,0],[-2,0],[0,2],[0,-2]])V(tx+dx,ty,z+dz,'leaves');};
+ const g1=new THREE.BoxGeometry(1,1,1),gh=new THREE.BoxGeometry(1,.5,1);
+ const cube=(t,x,y,z,parent,s,mat)=>{const m=new THREE.Mesh(g1,mat||mats[t]);m.position.set(x,y,z);if(s)m.scale.set(s[0],s[1],s[2]);(parent||scene).add(m);return m;};
+ // a block group that can vanish, move, push or bounce: props {bounce, crumble, conv:[vx,vz], timed:[from,to], off, mat}
+ const blocks=(x0,x1,z0,z1,top,t,props={})=>{const g=new THREE.Group();for(let x=x0;x<=x1;x++)for(let z=z0;z<=z1;z++)cube(t,x+.5,top-.5,z+.5,g,null,props.mat);scene.add(g);const b=C(x0,top-1,z0,x1+1,top,z1+1,props.tag||'');Object.assign(b,props,{g,home:[0,0,0]});dyn.push(b);return b;};
+ const mover=(w,d,fn,t)=>{const g=new THREE.Group();for(let x=0;x<w;x++)for(let z=0;z<d;z++)cube(t,x+.5,-.5,z+.5,g);scene.add(g);const b=C(0,0,0,0,0,0,'mover');const m={g,b,w,d,fn,dx:0,dy:0,dz:0};m.set=(time)=>{const p=fn(time);const ox=b.min[0],oy=b.max[1],oz=b.min[2];b.min=[p[0],p[1]-1,p[2]];b.max=[p[0]+w,p[1],p[2]+d];g.position.set(p[0],p[1],p[2]);m.dx=p[0]-ox;m.dy=p[1]-oy;m.dz=p[2]-oz;};m.set(0);m.dx=m.dy=m.dz=0;movers.push(m);return m;};
  const ease=s=>(1-Math.cos(s))/2;
- mover(-1,3,3,5,t=>[-1,5,34+9*ease(t*2*Math.PI/8)],'woolG');
- mover(-1,3,3,0,t=>[-1,.01+6*ease(t*2*Math.PI/7),113],'gold');
- // gate (z=51 row is part of the landing; the gate stands on it)
- const gate=new THREE.Group();for(let x=-2;x<=2;x++)for(let y=0;y<3;y++)cube('iron',x+.5,y+.5,0,gate,[1,1,.4]);gate.position.set(0,5,51.5);scene.add(gate);
- const gateC=C(-2,5,51.3,3,8,51.7);
- // drawbridge, hinged at z=77, standing up until the lever is pulled
- const bridge=new THREE.Group();for(let x=-1;x<=1;x++)for(let z=0;z<8;z++)cube('plank',x+.5,-.5,-z-.5,bridge);bridge.position.set(0,5,77);bridge.rotation.x=Math.PI/2*0.98;scene.add(bridge);
- // sea
- const wt=canvasTex(T.water,16,5);wt.wrapS=wt.wrapT=THREE.RepeatWrapping;wt.repeat.set(120,160);
- const sea=new THREE.Mesh(new THREE.PlaneGeometry(240,320),new THREE.MeshLambertMaterial({map:wt,transparent:true,opacity:.9}));sea.rotation.x=-Math.PI/2;sea.position.set(0,-.6,60);scene.add(sea);
- // clouds
- const clouds=[];for(let i=0;i<14;i++){const c=cube('wool',(i*37%60)-30,18+(i%3)*2,i*11-20,null,[6+(i%4)*2,1,4+(i%3)*2]);clouds.push(c);}
- // things to use
- const its=[],cps=[];
+ // a gate (wall of blocks) that slides down into the floor when opened
+ const gate=(x0,x1,z,y,h,t,thick=.4)=>{const g=new THREE.Group();for(let x=x0;x<=x1;x++)for(let k=0;k<h;k++)cube(t,x+.5,k+.5,0,g,[1,1,thick]);g.position.set(0,y,z+.5);scene.add(g);const b=C(x0,y,z+.5-thick/2,x1+1,y+h,z+.5+thick/2);const o={g,b,h,y,open:0};gates.push(o);return o;};
+ // drawbridge hinged at zh, len blocks long towards -z
+ const drawbridge=(x0,x1,zh,len,top)=>{const g=new THREE.Group();for(let x=x0;x<=x1;x++)for(let z=0;z<len;z++)cube('plank',x+.5,-.5,-z-.5,g);g.position.set(0,top,zh);g.rotation.x=Math.PI/2*.98;scene.add(g);const b=C(x0,top-1,zh-len,x1+1,top,zh);b.off=1;const o={g,b,t:0,down:0};anim.push(dt=>{if(o.down&&o.t<1){o.t=Math.min(1,o.t+dt/1.4);g.rotation.x=(Math.PI/2*.98)*(1-o.t);if(o.t>=1)b.off=0;}});return o;};
+ // stepping stones that rise out of the water when a lever is pulled
+ const riser=(x0,x1,z0,z1,top,t)=>{const b=blocks(x0,x1,z0,z1,top,t,{off:1});b.g.position.y=-(top+1.5);const o={b,up:0};anim.push(dt=>{if(o.up&&o.delay>0){o.delay-=dt;return;}if(o.up&&b.g.position.y<0){b.g.position.y=Math.min(0,b.g.position.y+dt*4);if(b.g.position.y>=0)b.off=0;}});return o;};
  const signM=(x,y,z)=>{cube('log',x,y+.5,z,null,[.15,1,.15]);cube('sign',x,y+1.1,z,null,[.9,.6,.12]);};
  const sign=(x,y,z,text,label)=>{signM(x,y,z);its.push({k:'sign',x,y,z,label:label||'Read',act:()=>opt.say(text),text});};
- const npc=(x,y,z,text)=>{const f=figure({skin:'#83522f',shirt:'#2ec4b6',pants:'#3a2a7a',shoes:'#ffd23f',hair:'#1b1b1b',hairTpl:'puffs',w:1,hat:{tpl:'sunhat',c1:'#e8c872',c2:'#e63946'}});f.root.position.set(x,y,z);f.root.rotation.y=Math.PI;scene.add(f.root);its.push({k:'npc',x,y,z,label:'Talk',fig:f,act:()=>opt.say(text),text});};
- const chest=(id,x,y,z)=>{const base=cube('chest',x,y+.3,z,null,[.8,.6,.8]);const lid=new THREE.Group();lid.position.set(x,y+.6,z-.4);const l=cube('chest',0,.1,.4,lid,[.8,.2,.8]);scene.add(lid);its.push({k:'chest',id,x,y,z,label:'Open',lid,act:it=>opt.chest(it)});};
- const cp=(i,x,y,z)=>{cube('log',x,y+.8,z,null,[.12,1.6,.12]);const f=cube('wool',x+.3,y+1.4,z,null,[.5,.35,.06]);cps.push({i,x,y,z,flag:f,on:i===0});if(i===0)f.material=mats.woolG;};
- cp(0,-1.5,0,-3);cp(1,0,5,31);cp(2,-1.5,5,47.5);cp(3,0,5,66);cp(4,0,0,93);cp(5,1.2,0,111);
- sign(-2.5,0,-1.5,'Welcome to Block Park! Push the joystick to walk. Tap Jump to hop. Tap the hand to use things. Get to the flag at the end!');
- npc(2.5,0,-1.5,'Hi, I am Coach Kiki! If you fall in the sea, you go back to the last flag you touched. Touch the white flags to save your place.');
- sign(2.5,4,11.5,'Jump across the gaps. Run, then jump near the edge.');
- chest('a',-1.5,5,32.5);sign(1.5,5,33.3,'Wait for the green platform to come close, then step on. Stand still while it moves.');
- its.push({k:'button',x:1.8,y:5,z:50.3,label:'Press',act:it=>opt.gate(it)});const bp=cube('stone',1.8,5.45,50.3,null,[.45,.9,.45]),bb=cube('red',1.8,5.95,50.3,null,[.3,.18,.3]);its[its.length-1].mesh=bb;
- npc(1.5,5,64.5,'Pull the lever to lower the bridge, then walk across.');
- its.push({k:'lever',x:-1.5,y:5,z:67.8,label:'Pull',act:it=>opt.lever(it)});cube('cobble',-1.5,5.1,67.8,null,[.5,.2,.5]);const lv=new THREE.Group();lv.position.set(-1.5,5.2,67.8);cube('log',0,.3,0,lv,[.1,.6,.1]);lv.rotation.x=.6;scene.add(lv);its[its.length-1].mesh=lv;
- chest('b',1.5,5,67.8);
- sign(1.8,5,79.5,'Wheee! Slide down to the beach.');
- sign(-4,0,94,'Hop across the stepping stones. Take your time.');
- chest('c',-4.5,0,112);npc(3.5,0,112.5,'Ride the yellow lift up to the flag tower!');
- its.push({k:'bell',x:1.6,y:6,z:119.6,label:'Ring',act:it=>opt.bell(it)});cube('log',1.6,7.4,119.6,null,[1,.15,.15]);const bell=cube('gold',1.6,6.95,119.6,null,[.45,.5,.45]);its[its.length-1].mesh=bell;cube('log',1.15,6.7,119.6,null,[.12,1.4,.12]);cube('log',2.05,6.7,119.6,null,[.12,1.4,.12]);
- // finish flag
- cube('log',0,6+1.5,118,null,[.15,3,.15]);const flag=new THREE.Mesh(new THREE.BoxGeometry(1.2,.8,.05),mats.checker);flag.position.set(.65,6+2.6,118);scene.add(flag);
- return{mats,cols,movers,gate,gateC,bridge,its,cps,clouds,wt,flag,finish:{x:0,y:6,z:118}};}
+ const npc=(x,y,z,text,look)=>{const f=figure(Object.assign({skin:'#83522f',shirt:'#2ec4b6',pants:'#3a2a7a',shoes:'#ffd23f',hair:'#1b1b1b',hairTpl:'puffs',w:1,hat:{tpl:'sunhat',c1:'#e8c872',c2:'#e63946'}},look||{}));f.root.position.set(x,y,z);f.root.rotation.y=Math.PI;scene.add(f.root);its.push({k:'npc',x,y,z,label:'Talk',fig:f,act:()=>opt.say(text),text});};
+ const chest=(id,x,y,z)=>{cube('chest',x,y+.3,z,null,[.8,.6,.8]);const lid=new THREE.Group();lid.position.set(x,y+.6,z-.4);cube('chest',0,.1,.4,lid,[.8,.2,.8]);scene.add(lid);its.push({k:'chest',id,x,y,z,label:'Open',lid,act:it=>opt.chest(it)});};
+ const cp=(i,x,y,z)=>{cube('log',x,y+.8,z,null,[.12,1.6,.12]);const f=cube('wool',x+.3,y+1.4,z,null,[.5,.35,.06]);cps.push({i,x,y,z,flag:f,on:i===0});if(i===0)f.material=W.green;};
+ W.green=new THREE.MeshLambertMaterial({color:0x3fbf5f});
+ const button=(x,y,z,fn)=>{cube('stone',x,y+.45,z,null,[.45,.9,.45]);const m=cube('red',x,y+.95,z,null,[.3,.18,.3]);its.push({k:'button',x,y,z,label:'Press',mesh:m,act:it=>{if(it.done)return opt.say('Already pressed.');it.done=1;m.material=W.green;m.position.y-=.08;opt.sfx('good');fn(it);}});};
+ const lever=(x,y,z,fn)=>{cube('cobble',x,y+.1,z,null,[.5,.2,.5]);const lv=new THREE.Group();lv.position.set(x,y+.2,z);cube('log',0,.3,0,lv,[.1,.6,.1]);lv.rotation.x=.6;scene.add(lv);its.push({k:'lever',x,y,z,label:'Pull',mesh:lv,act:it=>{if(it.done)return opt.say('Already pulled.');it.done=1;lv.rotation.x=-.6;opt.sfx('good');fn(it);}});};
+ const key=(x,y,z)=>{const g=new THREE.Group();g.position.set(x,y+.7,z);cube('key',0,0,0,g,[.18,.18,.6]);cube('key',0,0,.35,g,[.4,.4,.12]);cube('key',.1,0,-.2,g,[.18,.1,.1]);scene.add(g);anim.push((dt,t)=>{g.rotation.y=t*2;g.position.y=y+.7+Math.sin(t*3)*.1;});
+  its.push({k:'key',x,y,z,label:'Take',act:it=>{if(it.done)return;it.done=1;g.visible=false;W.keys++;opt.sfx('good');opt.say('You got the key! Now find the locked door.');its.splice(its.indexOf(it),1);}});};
+ const door=(gt,x,y,z)=>{its.push({k:'door',x,y,z,label:'Unlock',act:it=>{if(gt.open)return opt.say('The door is open.');if(W.keys<1)return opt.say('This door is locked. Find the golden key!');W.keys--;openGate(gt);opt.sfx('good');opt.say('Click! The door is open.');}});};
+ const openGate=gt=>{gt.open=1;gt.b.off=1;};
+ anim.push(dt=>{for(const gt of gates)if(gt.open&&gt.g.position.y>gt.y-gt.h-.2)gt.g.position.y-=dt*2;});
+ const bell=(x,y,z)=>{cube('log',x,y+1.4,z,null,[1,.15,.15]);const m=cube('gold',x,y+.95,z,null,[.45,.5,.45]);cube('log',x-.45,y+.7,z,null,[.12,1.4,.12]);cube('log',x+.45,y+.7,z,null,[.12,1.4,.12]);const it={k:'bell',x,y,z,label:'Ring',mesh:m,t:0,act:it=>{it.t=1.2;opt.sfx('bell');opt.say('Ding dong!');}};its.push(it);anim.push(dt=>{if(it.t>0){it.t-=dt;m.rotation.z=Math.sin(it.t*18)*.4*it.t;}});};
+ const finish=(x,y,z)=>{cube('log',x,y+1.5,z,null,[.15,3,.15]);const f=new THREE.Mesh(new THREE.BoxGeometry(1.2,.8,.05),mats.checker);f.position.set(x+.65,y+2.6,z);scene.add(f);anim.push((dt,t)=>{f.rotation.y=Math.sin(t*2)*.15;});W.finish={x,y,z};};
+ const fan=(x,y,z,dir)=>{cube('iron',x,y+.5,z);const bl=new THREE.Group();bl.position.set(x+(dir==='up'?0:dir*-.55),y+(dir==='up'?1.05:.5),z);cube('cobble',0,0,0,bl,dir==='up'?[1.2,.08,.2]:[.08,1.2,.2]);scene.add(bl);anim.push((dt,t)=>{if(dir==='up')bl.rotation.y=t*8;else bl.rotation.x=t*8;});};
+ const puffs=(zone,n,v)=>{for(let i=0;i<n;i++){const m=cube('cloud',0,0,0,null,[.15,.15,.15]);const r=[Math.random(),Math.random(),Math.random()];anim.push((dt,t)=>{const k=(r[0]+t*.5)%1;m.position.set(zone.min[0]+(v[0]?(v[0]>0?k:1-k):r[1])*(zone.max[0]-zone.min[0]),zone.min[1]+(v[1]?k:r[2]*.6)*(zone.max[1]-zone.min[1]),zone.min[2]+(r[2])*(zone.max[2]-zone.min[2]));});}};
+ // sea and clouds
+ const wt=canvasTex(T.water,16,5);wt.wrapS=wt.wrapT=THREE.RepeatWrapping;wt.repeat.set(120,160);W.wt=wt;
+ const sea=new THREE.Mesh(new THREE.PlaneGeometry(240,320),new THREE.MeshLambertMaterial({map:wt,transparent:true,opacity:.9}));sea.rotation.x=-Math.PI/2;sea.position.set(0,-.6,60);scene.add(sea);
+ const clouds=[];const cy=cid==='sky'?4:18;for(let i=0;i<14;i++){clouds.push(cube('wool',(i*37%60)-30,cy+(i%3)*2,i*11-20,null,[6+(i%4)*2,1,4+(i%3)*2]));}
+ anim.push((dt,t)=>{wt.offset.x=(t*.02)%1;clouds.forEach((c,i)=>{c.position.x+=dt*(.3+i%3*.1);if(c.position.x>40)c.position.x=-40;});for(const b of belts)b.offset.y=-(t*.8)%1;});
+ const say=opt.say;
+ if(cid==='reef'){
+  P(-5,5,-6,5,0,'sand',3,'sand');palm(-4,-4);palm(3,-5);palm(-4,3);
+  cp(0,-1.5,0,-3);
+  sign(-2.5,0,-1.5,'Welcome to Reef and Jungle! Jump on the red mushroom to bounce up over the jungle wall.');
+  npc(2.5,0,-1.5,'Sandy blocks crumble after you step on them, so keep walking! They come back after a little while.',{shirt:'#ff9f1c',hairTpl:'locs',hair:'#3b2219'});
+  P(-6,6,8,8,4,'leaves',4,'leaves');blocks(-1,1,5,5,1,'mush',{bounce:1});
+  P(-2,2,9,12,4,'grass');sign(2,4,11,'Walk across the crumbly sand blocks. Do not stop!');
+  for(let z=13;z<=22;z++)blocks(-1,1,z,z,4,'crumb',{crumble:1});
+  P(-2,2,23,27,4,'grass',2);cp(1,0,4,25);chest('r1',-1.5,4,26.5);
+  P(-1,0,28,39,4,'plank');for(let z=28;z<=40;z+=3){cube('log',-1.6,4.5,z,null,[.12,1.2,.12]);cube('log',1.1,4.5,z,null,[.12,1.2,.12]);}
+  for(let z=29;z<40;z+=2)cube('leaves',z%4?-2.5:2,7.5,z,null,[.15,3,.15]);
+  P(-2,2,40,45,4,'grass',2);cp(2,0,4,42);
+  P(5,8,41,44,8,'grass',3);blocks(3,3,42,43,5,'mush',{bounce:1});key(6.5,8,42.5);
+  npc(-1.5,4,43.6,'The door is locked. The golden key is up on the high ledge. Bounce on the mushroom to get it!',{shirt:'#ff9f1c',hairTpl:'locs',hair:'#3b2219'});
+  const d1=gate(-2,2,45,4,3,'plank',.5);door(d1,1,4,44.2);
+  // rolling log
+  C(-1,3,46,1,4,58,'log').conv=[.8,0];const lg=new THREE.Mesh(new THREE.CylinderGeometry(1,1,12,10),mats.log);lg.rotation.x=Math.PI/2;lg.position.set(0,3,52);scene.add(lg);anim.push(dt=>{lg.rotation.y-=dt*1.1;});
+  cols[cols.length-1].min[0]=-1;cols[cols.length-1].max[0]=1;
+  P(-2,2,58,62,4,'grass',2);cp(3,0,4,60);sign(1.8,4,61.5,'Pull the lever to raise the stepping stones out of the sea.');
+  const r1=riser(-1,1,64,65,4,'stone'),r2=riser(-1,1,67,68,5,'stone'),r3=riser(-1,1,70,71,6,'stone');
+  lever(-1.5,4,61.8,()=>{[r1,r2,r3].forEach((r,i)=>{r.up=1;r.delay=i*.4;});say('Look! Stepping stones are coming up.');});
+  P(-4,4,73,82,6,'grass',3);cp(4,0,6,74.5);palm(-4,80,6);palm(4,77,6);chest('r2',3,6,75.5);bell(-2,6,79.5);finish(0,6,79);
+  npc(2.5,6,80.5,'Well done, jungle explorer! Ring the bell, then touch the flag.',{shirt:'#ff9f1c',hairTpl:'locs',hair:'#3b2219'});
+ }else if(cid==='sky'){
+  P(-4,4,-5,4,10,'cloud',1,'cloud');cp(0,-1.5,10,-3);
+  sign(-2.5,10,-1.5,'Welcome to Cloud Fort! The grey belts move. Keep walking forward to cross them.');
+  npc(2.5,10,-1.5,'The blue and pink blocks take turns. When a block blinks, it is about to go, so jump to the other colour!',{shirt:'#6a4cdf',hairTpl:'bun',hair:'#1b1b1b',hat:{tpl:'captain',c1:'#ffffff',c2:'#1d2a4a'}});
+  blocks(-1,1,5,14,10,'iron',{conv:[0,-1.4],mat:beltMat()});
+  P(-1,1,15,15,10,'cloud',1,'cloud');
+  blocks(-2,2,16,23,10,'iron',{conv:[1,0],mat:beltMat()});
+  P(-2,2,24,28,10,'cloud',1,'cloud');cp(1,0,10,26);chest('s1',-1.5,10,27.5);
+  blocks(-1,0,30,31,10,'blueB',{timed:[0,.7],mat:mats.timedA});blocks(0,1,33,34,10,'pinkB',{timed:[.45,1.15],mat:mats.timedB});
+  blocks(-1,0,36,37,10,'blueB',{timed:[0,.7],mat:mats.timedA});blocks(0,1,39,40,10,'pinkB',{timed:[.45,1.15],mat:mats.timedB});
+  P(-2,2,42,46,10,'cloud',1,'cloud');cp(2,0,10,44);sign(1.8,10,45.5,'Windy bridge! Steer against the wind. Then stand on the big fan to float up.');
+  P(-1,1,47,58,10,'cloud',1,'cloud');const wz={min:[-1.5,10,50],max:[1.5,13,56],kind:'wind',v:[-1.3,0]};zones.push(wz);for(let z=50;z<56;z+=2)fan(3.5,9.5,z+.5,1);puffs(wz,10,[-1,0]);
+  P(-1,1,59,61,10,'iron',1,'iron');const uz={min:[-1,10,59],max:[2,17.4,62.2],kind:'up'};zones.push(uz);fan(.5,9.95,60.5,'up');puffs(uz,10,[0,1]);
+  P(-2,2,62,66,16,'brick',2,'brick');cp(3,0,16,64);sign(-1.8,16,65.5,'Ride the moving platforms one at a time. Wait for each one to come to you.');
+  mover(3,3,t=>[-1,16,67+5*ease(t*2*Math.PI/7)],'woolG');
+  P(-2,2,75,77,16,'brick',2,'brick');key(1.8,16,76.4);
+  mover(3,3,t=>[-1,16+4*ease(t*2*Math.PI/7+Math.PI),78],'gold');
+  P(-2,2,81,86,20,'brick',2,'brick');cp(4,-1,20,82);
+  const d2=gate(-2,2,84,20,3,'iron',.4);door(d2,1.2,20,83.6);
+  P(-3,3,87,95,26,'brick',6,'brick');zones.push({min:[-.6,19.9,86.3],max:[.6,26.7,87.05],kind:'ladder'});
+  for(let y=20.3;y<26;y+=.5)cube('plank',0,y,86.9,null,[.9,.08,.12]);cube('log',-.45,23,86.9,null,[.1,6,.1]);cube('log',.45,23,86.9,null,[.1,6,.1]);
+  for(const x of[-3,3])for(let z=88;z<=95;z+=2){V(x,26,z,'brick');C(x,26,z,x+1,27,z+1);}
+  sign(-1.8,20,85.6,'Climb the ladder: hold the joystick up while you stand in front of it.');
+  chest('s2',-2,26,94);bell(2,26,94);finish(0,26,92);
+  npc(-1.5,26,89.5,'You made it to Cloud Fort! You are a super climber.',{shirt:'#6a4cdf',hairTpl:'bun',hair:'#1b1b1b',hat:{tpl:'captain',c1:'#ffffff',c2:'#1d2a4a'}});
+ }else{
+  // Sunny Island (ckl-v19 course, same layout)
+  P(-5,5,-6,5,0,'grass',3);tree(-4,-5);tree(4,-5);tree(-4,4);
+  P(-1,1,6,6,1,'stone',2);P(-1,1,7,7,2,'stone',3);P(-1,1,8,8,3,'stone',4);P(-1,1,9,9,4,'cobble',2);
+  P(-2,2,10,12,4,'plank');
+  P(-1,1,14,16,4,'stone');P(1,3,19,21,4,'stone');P(-1,1,24,26,5,'brick');
+  P(-2,2,29,33,5,'grass',2);
+  P(-2,2,46,51,5,'plank');
+  P(0,0,52,63,5,'log');
+  P(-2,2,64,68,5,'grass',2);
+  P(-2,2,77,80,5,'stone');
+  for(let i=0;i<10;i++){const top=5-.5*(i+1),z=81+i;for(let x=-1;x<=1;x++){for(let y=-1;y<(top%1?Math.floor(top):top-1);y++)V(x,y,z,'stone');if(top%1)V(x,Math.floor(top),z,'gold',1);else V(x,top-1,z,'gold');}C(-1,-1,z,2,top,z+1,'slide');V(-2,Math.floor(top),z,'red');V(2,Math.floor(top),z,'red');C(-2,-1,z,-1,Math.floor(top)+1,z+1);C(2,-1,z,3,Math.floor(top)+1,z+1);}
+  P(-6,6,91,95,0,'sand',2,'sand');P(-3,-2,97,98,0,'stone',2);P(0,1,100,101,0,'stone',2);P(-2,-1,103,104,0,'stone',2);P(1,2,106,107,0,'stone',2);
+  P(-6,6,109,121,0,'grass',2);tree(-5,120);tree(5,110);
+  P(-2,2,116,120,6,'cobble',6,'cobble');
+  mover(3,3,t=>[-1,5,34+9*ease(t*2*Math.PI/8)],'woolG');
+  mover(3,3,t=>[-1,.01+6*ease(t*2*Math.PI/7),113],'gold');
+  const gt=gate(-2,2,51,5,3,'iron',.4);
+  const br=drawbridge(-1,1,77,8,5);
+  cp(0,-1.5,0,-3);cp(1,0,5,31);cp(2,-1.5,5,47.5);cp(3,0,5,66);cp(4,0,0,93);cp(5,1.2,0,111);
+  sign(-2.5,0,-1.5,'Welcome to Block Park! Push the joystick to walk. Tap Jump to hop. Tap the hand to use things. Get to the flag at the end!');
+  npc(2.5,0,-1.5,'Hi, I am Coach Kiki! If you fall in the sea, you go back to the last flag you touched. Touch the white flags to save your place.');
+  sign(2.5,4,11.5,'Jump across the gaps. Run, then jump near the edge.');
+  chest('a',-1.5,5,32.5);sign(1.5,5,33.3,'Wait for the green platform to come close, then step on. Stand still while it moves.');
+  button(1.8,5,50.3,()=>{openGate(gt);say('Click! The gate is opening.');});
+  npc(1.5,5,64.5,'Pull the lever to lower the bridge, then walk across.');
+  lever(-1.5,5,67.8,()=>{br.down=1;say('The bridge is coming down!');});
+  chest('b',1.5,5,67.8);
+  sign(1.8,5,79.5,'Wheee! Slide down to the beach.');
+  sign(-4,0,94,'Hop across the stepping stones. Take your time.');
+  chest('c',-4.5,0,112);npc(3.5,0,112.5,'Ride the yellow lift up to the flag tower!');
+  bell(1.6,6,119.6);finish(0,6,118);
+ }
+ for(const k in vox){const[t,h]=k.split('|');const L=vox[k];const im=new THREE.InstancedMesh(h?gh:g1,mats[t],L.length);const mtx=new THREE.Matrix4();L.forEach((p,i)=>{mtx.makeTranslation(p[0],p[1],p[2]);im.setMatrixAt(i,mtx);});scene.add(im);}
+ // per-frame updates for timed and crumbling blocks
+ W.update=(dt,t,pl,hitP)=>{for(const f of anim)f(dt,t);
+  for(const b of dyn){if(b.timed){const ph=(t/7)%1,[a,c]=b.timed,on=(ph>=a&&ph<c)||(c>1&&ph<c-1),left=on?((c>1&&ph<c-1?c-1:c)-ph)*7:9;b.off=!on;b.g.visible=on&&!(left<1&&Math.floor(t*8)%2);}
+   if(b.crumble){if(b.cr>0){b.cr-=dt;b.g.position.x=Math.sin(t*60)*.05;if(b.cr<=0){b.off=1;b.g.visible=false;b.back=3;opt.sfx('crumble');}}
+    else if(b.off&&b.back>0){b.back-=dt;if(b.back<=0){if(hitP(b))b.back=.5;else{b.off=0;b.cr=0;b.g.visible=true;b.g.position.x=0;}}}}}};
+ return W;}
 // ---------- game ----------
 PARK.start=function(host,opt){PARK.stop();loadThree(err=>{if(err||!window.THREE){host.innerHTML='<p class="lead">The park could not load on this device.</p>';return;}run(host,opt);});};
 function run(host,opt){
@@ -153,12 +218,10 @@ function run(host,opt){
  const scene=new THREE.Scene();scene.background=new THREE.Color(0x8fd3ff);scene.fog=new THREE.Fog(0x8fd3ff,28,70);
  const cam=new THREE.PerspectiveCamera(60,1,.1,90);
  scene.add(new THREE.HemisphereLight(0xffffff,0x6b8f4a,.75));const sun=new THREE.DirectionalLight(0xffffff,.65);sun.position.set(-4,10,-6);scene.add(sun);
- const st=opt.state;const W=build(scene,{say:opt.say,
-  chest:it=>{if(it.open)return opt.say('This chest is empty now.');it.open=1;it.lid.rotation.x=-1.1;opt.chest(it.id);},
-  gate:it=>{if(W.gateOpen)return opt.say('The gate is already open.');W.gateOpen=1;it.mesh.material=W.mats_green;it.mesh.position.y-=.08;opt.sfx('good');opt.say('Click! The gate is opening.');},
-  lever:it=>{if(W.bridgeDown)return opt.say('The bridge is already down.');W.bridgeDown=1;it.mesh.rotation.x=-.6;opt.sfx('good');opt.say('The bridge is coming down!');},
-  bell:it=>{W.bellT=1.2;opt.sfx('bell');opt.say('Ding dong!');}});
- W.mats_green=new THREE.MeshLambertMaterial({color:0x3fbf5f});
+ const cid=opt.course||'island';const W=build(scene,{say:opt.say,sfx:opt.sfx,
+  chest:it=>{if(it.open)return opt.say('This chest is empty now.');it.open=1;it.lid.rotation.x=-1.1;opt.chest(it.id);}},cid);
+ if(cid==='sky'){scene.background=new THREE.Color(0xbfe6ff);scene.fog=new THREE.Fog(0xbfe6ff,30,80);}
+ W.mats_green=W.green;
  const F=figure(lookCols(opt.look||{}));F.root.scale.setScalar(.85);scene.add(F.root);
  const blob=new THREE.Mesh(new THREE.CircleGeometry(.35,12),new THREE.MeshBasicMaterial({color:0,transparent:true,opacity:.25}));blob.rotation.x=-Math.PI/2;scene.add(blob);
  // HUD
@@ -186,12 +249,11 @@ function run(host,opt){
  const camPos=new THREE.Vector3(pl.p.x,pl.p.y+4,pl.p.z-7);
  const HW=.3,HH=1.6;
  const hit=(b,p)=>p.x+HW>b.min[0]+1e-4&&p.x-HW<b.max[0]-1e-4&&p.z+HW>b.min[2]+1e-4&&p.z-HW<b.max[2]-1e-4&&p.y+HH>b.min[1]+1e-4&&p.y<b.max[1]-1e-4;
- const solid=()=>W.cols.filter(b=>!(b===W.gateC&&W.gateOpen));
+ const solid=()=>W.cols.filter(b=>!b.off);
  function moveAxis(a,d,list){if(!d)return;const p=pl.p;p[a]+=d;for(const b of list){if(!hit(b,p))continue;const top=b.max[1];
    if(pl.ground&&top-p.y<=.55&&top-p.y>0){const oy=p.y;p.y=top;if(!list.some(c=>hit(c,p)))continue;p.y=oy;}
    const i=a==='x'?0:2;p[a]=d>0?b.min[i]-HW-1e-3:b.max[i]+HW+1e-3;pl.v[a]=0;}}
  function physics(dt){const list=solid();
-  if(W.bridgeDown&&!W.bridgeC&&W.bridgeT>=1)W.bridgeC=W.cols.push({min:[-1,4,69],max:[2,5,77],tag:''});
   // ride a moving platform
   let ix=inp.x,iy=inp.y;const K=inp.keys;if(K.a||K.arrowleft)ix=-1;if(K.d||K.arrowright)ix=1;if(K.w||K.arrowup)iy=1;if(K.s||K.arrowdown)iy=-1;const il=Math.hypot(ix,iy);if(il>1){ix/=il;iy/=il;}
   if(pl.frozen){ix=iy=0;}
@@ -201,10 +263,16 @@ function run(host,opt){
   if(ix||iy)pl.yaw=Math.atan2(-ix,iy);
   pl.coyote=pl.ground?.12:Math.max(0,pl.coyote-dt);if(inp.jump){pl.buf=.15;inp.jump=0;}else pl.buf=Math.max(0,pl.buf-dt);
   if(pl.buf>0&&pl.coyote>0&&!pl.frozen){pl.v.y=8.2;pl.buf=0;pl.coyote=0;pl.ground=null;opt.sfx('jump');}
-  pl.v.y-=22*dt;if(pl.v.y<-18)pl.v.y=-18;
+  const cx=pl.p.x,cy=pl.p.y+.8,cz=pl.p.z;let ladder=0;
+  for(const z of W.zones){if(cx<z.min[0]||cx>z.max[0]||cz<z.min[2]||cz>z.max[2]||pl.p.y<z.min[1]-.2||pl.p.y>z.max[1])continue;
+   if(z.kind==='wind')moveAxis('x',z.v[0]*dt,list),moveAxis('z',z.v[1]*dt,list);else if(z.kind==='up'){if(pl.p.y<z.max[1]-.6)pl.v.y=Math.max(pl.v.y,5.5);}else if(z.kind==='ladder')ladder=1;}
+  if(ladder&&!pl.frozen){pl.v.y=iy>.3?3.2:iy<-.3?-3:0;}else{pl.v.y-=22*dt;if(pl.v.y<-18)pl.v.y=-18;}
+  if(pl.ground&&pl.ground.conv){moveAxis('x',pl.ground.conv[0]*dt,list);moveAxis('z',pl.ground.conv[1]*dt,list);}
   moveAxis('x',pl.v.x*dt,list);moveAxis('z',pl.v.z*dt,list);
   pl.p.y+=pl.v.y*dt;pl.ground=null;for(const b of list){if(!hit(b,pl.p))continue;if(pl.v.y<=0){pl.p.y=b.max[1];pl.v.y=0;pl.ground=b;}else{pl.p.y=b.min[1]-HH-1e-3;pl.v.y=0;}}
-  if(!pl.ground){const q=pl.p.clone();q.y-=.03;for(const b of list)if(pl.v.y<=0&&hit(b,q)){pl.ground=b;break;}}}
+  if(!pl.ground){const q=pl.p.clone();q.y-=.03;for(const b of list)if(pl.v.y<=0&&hit(b,q)){pl.ground=b;break;}}
+  const gb=pl.ground;if(gb&&gb.bounce&&!pl.frozen){pl.v.y=13;pl.ground=null;pl.coyote=0;opt.sfx('boing');}
+  if(gb&&gb.crumble&&!gb.cr&&!gb.off)gb.cr=.9;}
  let fading=0;
  function checks(){const p=pl.p;
   if(p.y<-1.4&&!fading){fading=1;pl.falls++;pl.frozen=1;$('#pkFade').classList.add('on');opt.sfx('soft');opt.say(pl.falls<3?'Splash! Back to your flag.':'Back to your flag. You can do it!');setTimeout(()=>{spawn();$('#pkFade').classList.remove('on');pl.frozen=0;fading=0;},650);}
@@ -221,15 +289,12 @@ function run(host,opt){
  resize();window.addEventListener('resize',resize);
  function logic(dt){tAll+=dt;
   for(const m of W.movers)m.set(tAll);
-  if(W.gateOpen&&W.gate.position.y>2.1)W.gate.position.y-=dt*2;
-  if(W.bridgeDown){W.bridgeT=Math.min(1,(W.bridgeT||0)+dt/1.4);W.bridge.rotation.x=(Math.PI/2*.98)*(1-W.bridgeT);}
-  if(W.bellT>0){W.bellT-=dt;W.its.find(i=>i.k==='bell').mesh.rotation.z=Math.sin(W.bellT*18)*.4*W.bellT;}
-  W.wt.offset.x=(tAll*.02)%1;W.flag.rotation.y=Math.sin(tAll*2)*.15;W.clouds.forEach((c,i)=>{c.position.x+=dt*(.3+i%3*.1);if(c.position.x>40)c.position.x=-40;});
+  W.update(dt,tAll,pl,b=>hit(b,pl.p));
   for(const it of W.its)if(it.k==='npc'){const dx=pl.p.x-it.x,dz=pl.p.z-it.z;if(Math.hypot(dx,dz)<6)it.fig.root.rotation.y=Math.atan2(dx,dz);}
   if(pl.ground&&pl.ground.tag==='mover'){const m=W.movers.find(m=>m.b===pl.ground);if(m){pl.p.x+=m.dx;pl.p.z+=m.dz;if(m.dy>0)pl.p.y+=m.dy;}}
   const sub=Math.max(2,Math.ceil(dt/.02));for(let i=0;i<sub;i++)physics(dt/sub);checks();interact();}
  function frame(now){raf=requestAnimationFrame(frame);if(!document.body.contains(host)){PARK.stop();return;}
-  const real=(now-last)/1000;let dt=Math.min(.1,real);last=now;frames++;fpsT+=real;if(fpsT>1){fps=frames/fpsT;frames=0;fpsT=0;}
+  const real=(now-last)/1000;let dt=Math.max(0,Math.min(.1,real));last=now;frames++;fpsT+=real;if(fpsT>1){fps=frames/fpsT;frames=0;fpsT=0;}
   logic(dt);
   // avatar
   F.root.position.copy(pl.p);let dy=pl.yaw-F.root.rotation.y;dy=Math.atan2(Math.sin(dy),Math.cos(dy));F.root.rotation.y+=dy*Math.min(1,dt*12);
@@ -242,7 +307,7 @@ function run(host,opt){
   ren.render(scene,cam);}
  raf=requestAnimationFrame(frame);
  G={stop(){cancelAnimationFrame(raf);window.removeEventListener('keydown',kd);window.removeEventListener('keyup',kd);window.removeEventListener('resize',resize);try{ren.dispose();ren.forceContextLoss();}catch(e){}},
-  hud:$,pl,W,inp,get fps(){return fps;},near:()=>near&&near.k,
+  hud:$,pl,W,inp,get fps(){return fps;},get t(){return tAll;},near:()=>near&&near.k,
   sim(sec){for(let t=0;t<sec;t+=1/60)logic(1/60);},teleport(x,y,z){pl.p.set(x,y,z);pl.v.set(0,0,0);},setCoins(n){$('#pkC').textContent='🪙 '+n;},setX(t){$('#pkX').textContent=t;},setBest(ms){$('#pkB').textContent='🏆 '+fmt(ms);},
   restart(){pl.cp=0;W.cps.forEach(c=>{c.on=c.i===0;c.flag.material=c.i===0?W.mats_green:W.mats.wool;});pl.done=0;pl.started=0;pl.frozen=0;pl.falls=0;$('#pkT').textContent='⏱ 0:00';spawn();}};
  PARK.dbg=G;if(opt.ready)opt.ready(G);}

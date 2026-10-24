@@ -1,5 +1,5 @@
 // Offline cache. Bump VERSION whenever any file changes so tablets pick up the update.
-const VERSION='ckl-v20';
+const VERSION='ckl-v21';
 const ASSETS=['./','./index.html','./manifest.json','./css/style.css','./js/audio.js','./js/lessons.js','./js/grade3gen.js','./js/grade1.js','./js/grade2.js','./js/grade4.js','./js/grade5.js','./js/grade6.js','./js/bank_g3a.js','./js/bank_g3b.js','./js/bank_g3c.js','./js/bank_g4.js','./js/bank_g5.js','./js/bank_g6.js','./js/bankwire.js','./js/showme.js','./js/park.js','./js/vendor/three.min.js','./icons/icon-maskable-192.png','./icons/icon-maskable-512.png','./js/avatar.js','./js/events.js','./js/app.js','./icons/icon.svg','./icons/icon-192.png','./icons/icon-512.png','./img/money/note_5_back.webp','./img/money/note_10_back.webp','./img/money/note_20_back.webp','./img/money/note_50_back.webp','./img/money/note_100_back.webp','./img/money/coin_10c.webp','./img/money/coin_25c.webp','./img/money/coin_1.webp'];
 self.addEventListener('install',e=>{e.waitUntil(caches.open(VERSION).then(c=>c.addAll(ASSETS)).then(()=>self.skipWaiting()));});
 self.addEventListener('activate',e=>{e.waitUntil(caches.keys().then(k=>Promise.all(k.filter(x=>x!==VERSION).map(x=>caches.delete(x)))).then(()=>self.clients.claim()));});
